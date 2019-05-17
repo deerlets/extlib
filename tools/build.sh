@@ -49,7 +49,7 @@ cmocka()
 {
     cmocka_path=$PROJECT_DIR/deps/cmocka
 
-    if [ ! "$(find $PROJECT_DIR/lib -maxdepth 1 -name ${FUNCNAME[0]}*)" ]; then
+    if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
         mkdir -p $cmocka_path/build && cd $cmocka_path/build
         cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR
         make -j$JOBS && make install
