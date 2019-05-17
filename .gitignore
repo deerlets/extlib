@@ -1,3 +1,10 @@
+# Directories
+build/
+include/
+lib/
+lib64/
+share/
+
 # Prerequisites
 *.d
 
