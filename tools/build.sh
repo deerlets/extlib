@@ -60,7 +60,7 @@ cmocka()
 libcx()
 {
     mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
-    cmake .. && make -j$JOBS
+    cmake .. && make -j$JOBS && make test
     [ ! $? -eq 0 ] && exit 1
 }
 
