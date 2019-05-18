@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stringx.h>
 
 #define ERRMSG_LEN 2048
 
@@ -32,10 +33,12 @@ static void opt_parse_value(struct opt *opt, const char *str)
 		opt->type = OPT_STRING;
 		opt->value.s = malloc(strlen(str) + 1);
 		strcpy(opt->value.s, str);
+		trim(opt->value.s, 0);
 	} else if (opt->type == OPT_STRING) {
 		free(opt->value.s);
 		opt->value.s = malloc(strlen(str) + 1);
 		strcpy(opt->value.s, str);
+		trim(opt->value.s, 0);
 	} else if (opt->type == OPT_INTEGER) {
 		opt->value.i = strtol(str, NULL, 0);
 	} else if (opt->type == OPT_BOOL) {
@@ -132,7 +135,7 @@ int opt_init_from_file(struct opt * const opttab, const char *filename)
 			continue;
 		if (line[0] == '\n' && line[1] == '\0')
 			continue;
-		if (sscanf(line, "%1023[^:]: %1023[^\r\n[ #][ //]]", w1, w2) != 2)
+		if (sscanf(line, "%1023[^:]: %1023[^\r\n]", w1, w2) != 2)
 			continue;
 
 		struct opt *tmp = find_opt(w1, opttab);
