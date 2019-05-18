@@ -57,7 +57,7 @@ cmocka()
     fi
 }
 
-libcx()
+extlibc()
 {
     mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
     cmake .. -DWITH_TESTS=on && make -j$JOBS && make test
@@ -66,4 +66,4 @@ libcx()
 
 do_init
 do_build cmocka
-do_build libcx
+do_build extlibc
