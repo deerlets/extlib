@@ -8,7 +8,7 @@ set_target_properties(cx-static PROPERTIES OUTPUT_NAME cx)
 
 add_library(cx SHARED ${SRC})
 set_target_properties(cx PROPERTIES PUBLIC_HEADER "${INC}")
-set_target_properties(cx PROPERTIES VERSION 0.1.0 SOVERSION 0.1)
+set_target_properties(cx PROPERTIES VERSION 0.0.1 SOVERSION 0)
 
 install(TARGETS cx cx-static
     RUNTIME DESTINATION bin
