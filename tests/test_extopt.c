@@ -2,9 +2,9 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-#include <extopt.h>
 #include <stdio.h>
 #include <string.h>
+#include "extopt.h"
 
 static int argc = 8;
 static char *argv[] = {

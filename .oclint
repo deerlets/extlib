@@ -1,0 +1,10 @@
+disable-rules:
+  - ShortVariableName
+  - GotoStatement
+  - InvertedLogic
+  - ParameterReassignment
+  - BitwiseOperatorInConditional
+  - ConstantConditionalOperator # switch, snprintf
+rule-configurations:
+  - key: LONG_LINE
+    value: 83

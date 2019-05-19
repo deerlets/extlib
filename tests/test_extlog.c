@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-#include <extlog.h>
+#include "extlog.h"
 
 static void test_log_level(void **status)
 {

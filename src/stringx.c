@@ -1,4 +1,4 @@
-#include <stringx.h>
+#include "stringx.h"
 
 void trim(char *str, char c)
 {

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stringx.h>
+#include "stringx.h"
 
 #define ERRMSG_LEN 2048
 
