@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define OPTERR_NONE 0
 #define OPTERR_UNKNOW_OPT 1
 #define OPTERR_MISS_ARG 2
@@ -65,4 +69,7 @@ static inline bool opt_bool(struct opt *opt)
 	return opt->value.b;
 }
 
+#ifdef __cplusplus
+}
+#endif
 #endif
