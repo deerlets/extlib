@@ -47,25 +47,7 @@ do_init()
     [ ! -e $PROJECT_DIR/lib ] && mkdir -p $PROJECT_DIR/lib && ln -sf lib lib64
 }
 
-cmocka()
-{
-    cmocka_path=$PROJECT_DIR/deps/cmocka
-
-    if [ ! "$(find $PROJECT_DIR/lib* -maxdepth 1 -name *${FUNCNAME[0]}*)" ]; then
-        mkdir -p $cmocka_path/build && cd $cmocka_path/build
-        cmake .. -DCMAKE_INSTALL_PREFIX:PATH=$PROJECT_DIR
-        make -j$JOBS && make install
-        [ ! $? -eq 0 ] && exit 1
-    fi
-}
-
-extlibc()
-{
-    mkdir -p $PROJECT_DIR/build && cd $PROJECT_DIR/build
-    cmake .. -DBUILD_TESTS=on -DBUILD_DEBUG=$DEBUG && make -j$JOBS && make test
-    [ ! $? -eq 0 ] && exit 1
-}
+source $SCRIPT_DIR/user-build.sh
 
 do_init
-do_build cmocka
-do_build extlibc
+main
