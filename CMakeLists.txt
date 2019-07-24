@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
+project(extlibc)
+
 set(CMAKE_MACOSX_RPATH 1)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
