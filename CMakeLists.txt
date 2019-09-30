@@ -21,9 +21,6 @@ option(BUILD_STATIC "Build static library" ON)
 option(BUILD_SHARED "Build shared library" ON)
 
 include_directories(src)
-include_directories(include)
-link_directories(${PROJECT_SOURCE_DIR}/lib ${PROJECT_SOURCE_DIR}/lib64)
-
 add_subdirectory(src)
 
 option(BUILD_TESTS "Build all tests." OFF)
