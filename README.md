@@ -1,6 +1,6 @@
 # Extlibc
 
-[![Build Status](https://travis-ci.com/deerlets/extlibc.svg?branch=master)](https://travis-ci.com/deerlets/extlibc)
+[![Build status](https://ci.appveyor.com/api/projects/status/xw7be399o260xftd?svg=true)](https://ci.appveyor.com/project/yonzkon/extlibc)
 
 Extension for libc
 
@@ -8,7 +8,6 @@ Extension for libc
 
 - Linux
 - MacOS
-- Msys2
 
 ## Build
 ```
