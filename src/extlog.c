@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
+#include <sys/time.h>
 
 #if defined(__unix__) || defined(__APPLE__)
 #define CL_RESET "\033[0;0m"
@@ -48,29 +50,36 @@ static int __log_message(int level, const char *format, va_list ap)
 		strcpy(prefix, "");
 		break;
 	case LOG_LV_DEBUG: // Bright Cyan, important stuff!
-		strcpy(prefix, CL_CYAN"[Debug]"CL_RESET": ");
+		strcpy(prefix, CL_CYAN"D"CL_RESET);
 		break;
 	case LOG_LV_INFO: // Bright White (Variable information)
-		strcpy(prefix, CL_WHITE"[Info]"CL_RESET": ");
+		strcpy(prefix, CL_WHITE"I"CL_RESET);
 		break;
 	case LOG_LV_NOTICE: // Bright White (Less than a warning)
-		strcpy(prefix, CL_WHITE"[Notice]"CL_RESET": ");
+		strcpy(prefix, CL_WHITE"N"CL_RESET);
 		break;
 	case LOG_LV_WARN: // Bright Yellow
-		strcpy(prefix, CL_YELLOW"[Warning]"CL_RESET": ");
+		strcpy(prefix, CL_YELLOW"W"CL_RESET);
 		break;
 	case LOG_LV_ERROR: // Bright Red (Regular errors)
-		strcpy(prefix, CL_RED"[Error]"CL_RESET": ");
+		strcpy(prefix, CL_RED"E"CL_RESET);
 		break;
 	case LOG_LV_FATAL: // Bright Red (Fatal errors, abort(); if possible)
-		strcpy(prefix, CL_RED"[Fatal Error]"CL_RESET": ");
+		strcpy(prefix, CL_RED"F"CL_RESET);
 		break;
 	default:
 		printf("__log_message: Invalid level passed.\n");
 		return 1;
 	}
 
-	printf("%s", prefix);
+	struct timeval tmnow;
+	char buf[32] = {0}, usec_buf[16] = {0};
+	gettimeofday(&tmnow, NULL);
+	strftime(buf, 30, "%Y-%m-%d %H:%M:%S", localtime(&tmnow.tv_sec));
+	sprintf(usec_buf, ".%04d", (int)tmnow.tv_usec / 100);
+	strcat(buf, usec_buf);
+
+	printf("[%s] %s - ", buf, prefix);
 	vprintf(format, ap);
 	printf("\n");
 	fflush(stdout);
