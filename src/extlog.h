@@ -6,13 +6,13 @@ extern "C" {
 #endif
 
 enum log_level {
-	LOG_LV_NONE = 0,
-	LOG_LV_DEBUG,
-	LOG_LV_INFO, /* default */
-	LOG_LV_NOTICE,
-	LOG_LV_WARN,
-	LOG_LV_ERROR,
-	LOG_LV_FATAL,
+    LOG_LV_NONE = 0,
+    LOG_LV_DEBUG,
+    LOG_LV_INFO, /* default */
+    LOG_LV_NOTICE,
+    LOG_LV_WARN,
+    LOG_LV_ERROR,
+    LOG_LV_FATAL,
 };
 
 /* Set log level and return former log level. */

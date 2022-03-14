@@ -15,33 +15,33 @@ extern "C" {
 #define OPTERR_CONFIG_FILE_OPEN_FAILED 4
 
 enum opt_type {
-	OPT_NONE = 0,
-	OPT_STRING_STATIC,
-	OPT_STRING,
-	OPT_INTEGER,
-	OPT_BOOL,
+    OPT_NONE = 0,
+    OPT_STRING_STATIC,
+    OPT_STRING,
+    OPT_INTEGER,
+    OPT_BOOL,
 };
 
 struct opt {
-	const char *optshort;
-	const char *key;
-	union {
-		char *s;
-		int i;
-		bool b;
-	} value;
-	int type;
-	const char *desc;
+    const char *optshort;
+    const char *key;
+    union {
+        char *s;
+        int i;
+        bool b;
+    } value;
+    int type;
+    const char *desc;
 };
 
 #define INIT_OPT_STRING(optshort, key, val, desc) \
-	{ optshort, key, {.s = (char *)val}, OPT_STRING_STATIC, desc }
+    { optshort, key, {.s = (char *)val}, OPT_STRING_STATIC, desc }
 #define INIT_OPT_INT(optshort, key, val, desc) \
-	{ optshort, key, {.i = val}, OPT_INTEGER, desc }
+    { optshort, key, {.i = val}, OPT_INTEGER, desc }
 #define INIT_OPT_BOOL(optshort, key, val, desc) \
-	{ optshort, key, {.b = val}, OPT_BOOL, desc }
+    { optshort, key, {.b = val}, OPT_BOOL, desc }
 #define INIT_OPT_NONE() \
-	{ NULL, NULL, {.s = NULL}, OPT_NONE, NULL }
+    { NULL, NULL, {.s = NULL}, OPT_NONE, NULL }
 
 const char *opt_errmsg();
 struct opt *find_opt(const char *key, struct opt * const opttab);
@@ -53,20 +53,20 @@ void opt_usage(struct opt * const opttab);
 
 static inline const char *opt_string(struct opt *opt)
 {
-	assert(opt->type == OPT_STRING_STATIC || opt->type == OPT_STRING);
-	return opt->value.s;
+    assert(opt->type == OPT_STRING_STATIC || opt->type == OPT_STRING);
+    return opt->value.s;
 }
 
 static inline int opt_int(struct opt *opt)
 {
-	assert(opt->type == OPT_INTEGER);
-	return opt->value.i;
+    assert(opt->type == OPT_INTEGER);
+    return opt->value.i;
 }
 
 static inline bool opt_bool(struct opt *opt)
 {
-	assert(opt->type == OPT_BOOL);
-	return opt->value.b;
+    assert(opt->type == OPT_BOOL);
+    return opt->value.b;
 }
 
 #ifdef __cplusplus
