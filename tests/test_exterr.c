@@ -6,20 +6,21 @@
 
 static void test_err(void **status)
 {
-    exterr_init();
-
     assert_string_equal(ext_strerr(EXTERR_EPERM), "no permission");
     assert_string_equal(ext_strerr(EXTERR_EINVAL), "invalid argument");
 
-    assert_string_equal(ext_strerr(10010), "Unknown errno");
+    assert_string_equal(ext_strerr2(EXTERR_EPERM), "no permission");
+    assert_string_equal(ext_strerr2(EXTERR_EINVAL), "invalid argument");
+
+    assert_string_equal(ext_strerr2(10010), "Unknown errno");
     assert_int_equal(exterr_register(10010, "test errno 10010"), 0);
-    assert_string_equal(ext_strerr(10010), "test errno 10010");
+    assert_string_equal(ext_strerr2(10010), "test errno 10010");
     assert_int_equal(exterr_register(10010, "test errno 10010"), -1);
 
     exterr_register(10020, "test errno 10020");
-    assert_string_equal(ext_strerr(10020), "test errno 10020");
+    assert_string_equal(ext_strerr2(10020), "test errno 10020");
     exterr_register(10030, "test errno 10030");
-    assert_string_equal(ext_strerr(10030), "test errno 10030");
+    assert_string_equal(ext_strerr2(10030), "test errno 10030");
 
     exterr_unregister_all();
 }

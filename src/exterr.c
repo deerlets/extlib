@@ -14,8 +14,8 @@ struct exterr {
     struct list_head node;
 };
 
-struct hlist_head err_hlist[NR_SERVICE];
-LIST_HEAD(err_list);
+static struct hlist_head err_hlist[NR_SERVICE];
+static LIST_HEAD(err_list);
 
 static unsigned int calc_tag(const void *buf, size_t len)
 {
@@ -74,9 +74,9 @@ int exterr_register(int __errno, const char *errmsg)
     return 0;
 }
 
-const char *ext_strerr(int __errno)
+const char *ext_strerr2(int __errno)
 {
     struct exterr *err = find_exterr(__errno);
     if (err) return err->errmsg;
-    return "Unknown errno";
+    return ext_strerr(__errno);
 }

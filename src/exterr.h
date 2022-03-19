@@ -5,15 +5,8 @@
 extern "C" {
 #endif
 
-void exterr_unregister_all();
-int exterr_register(int __errno, const char *errmsg);
-const char *ext_strerr(int __errno);
-
-/*
- * macro template with exterr_init()
- */
-
 #define EXTERR_ERRNO_MAP(MACRO)                 \
+    MACRO(EOK, "OK")                            \
     MACRO(EPERM, "no permission")               \
     MACRO(EINVAL, "invalid argument")           \
     MACRO(EFAIL, "operation failed")            \
@@ -22,16 +15,26 @@ const char *ext_strerr(int __errno);
     MACRO(EBUSY, "object is busy")
 
 enum {
-    EXTERR_EOK = 0,
 #define XX(code, _) EXTERR_##code,
     EXTERR_ERRNO_MAP(XX)
 #undef XX
     EXTERR_ERRNO_USER = 10000,
 };
 
-#define EXTERR_INIT_GEN(name, errmsg) exterr_register(EXTERR_##name, errmsg);
-static inline void exterr_init() { EXTERR_ERRNO_MAP(EXTERR_INIT_GEN) }
-#undef EXTERR_INIT_GEN
+#define EXT_STRERR_GEN(name, msg) case EXTERR_##name: return msg;
+static const char *ext_strerr(int __errno) {
+    switch (__errno) { EXTERR_ERRNO_MAP(EXT_STRERR_GEN) }
+    return "Unknown errno";
+}
+#undef EXT_STRERR_GEN
+
+/*
+ * dynamic ext_strerr2
+ */
+
+void exterr_unregister_all();
+int exterr_register(int __errno, const char *errmsg);
+const char *ext_strerr2(int __errno);
 
 #ifdef __cplusplus
 }
