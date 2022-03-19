@@ -22,19 +22,14 @@ enum {
 };
 
 #define EXT_STRERR_GEN(name, msg) case EXTERR_##name: return msg;
-static const char *ext_strerr(int __errno) {
+static __attribute__((unused)) const char *ext_strerr_base(int __errno) {
     switch (__errno) { EXTERR_ERRNO_MAP(EXT_STRERR_GEN) }
     return "Unknown errno";
 }
 #undef EXT_STRERR_GEN
 
-/*
- * dynamic ext_strerr2
- */
-
-void exterr_unregister_all();
 int exterr_register(int __errno, const char *errmsg);
-const char *ext_strerr2(int __errno);
+const char *ext_strerr(int __errno);
 
 #ifdef __cplusplus
 }

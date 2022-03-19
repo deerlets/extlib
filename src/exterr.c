@@ -44,7 +44,13 @@ static struct exterr *find_exterr(int __errno)
     return NULL;
 }
 
-void exterr_unregister_all()
+#define EXTERR_INIT_GEN(name, errmsg) exterr_register(EXTERR_##name, errmsg);
+static __attribute__((constructor))
+void exterr_init() { EXTERR_ERRNO_MAP(EXTERR_INIT_GEN) }
+#undef EXTERR_INIT_GEN
+
+static __attribute__((destructor))
+void exterr_fini()
 {
     struct exterr *pos, *n;
     list_for_each_entry_safe(pos, n, &err_list, node) {
@@ -74,9 +80,9 @@ int exterr_register(int __errno, const char *errmsg)
     return 0;
 }
 
-const char *ext_strerr2(int __errno)
+const char *ext_strerr(int __errno)
 {
     struct exterr *err = find_exterr(__errno);
     if (err) return err->errmsg;
-    return ext_strerr(__errno);
+    return "Unknown errno";
 }
