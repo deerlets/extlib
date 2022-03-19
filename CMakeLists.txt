@@ -19,6 +19,7 @@ endif ()
 
 option(BUILD_STATIC "Build static library" ON)
 option(BUILD_SHARED "Build shared library" ON)
+option(BUILD_EXT "Build extension." OFF)
 
 include_directories(src)
 add_subdirectory(src)

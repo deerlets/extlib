@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.12)
 
-file(GLOB SRC *.c)
-file(GLOB INC *.h)
+if (BUILD_EXT)
+    file(GLOB SRC *.c ext/*.c)
+    file(GLOB INC *.h ext/*.h)
+else ()
+    file(GLOB SRC *.c)
+    file(GLOB INC *.h)
+endif ()
 
 if (BUILD_STATIC)
     add_library(cx-static STATIC ${SRC})
