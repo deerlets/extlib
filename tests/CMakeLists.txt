@@ -23,3 +23,7 @@ add_test(test-module ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-module)
 add_executable(test-timer test_timer.c)
 target_link_libraries(test-timer cmocka cx)
 add_test(test-timer ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-timer)
+
+add_executable(test-exterr test_exterr.c)
+target_link_libraries(test-exterr cmocka cx)
+add_test(test-exterr ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-exterr)
