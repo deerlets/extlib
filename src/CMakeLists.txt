@@ -1,22 +1,21 @@
 cmake_minimum_required(VERSION 3.12)
 
+file(GLOB SRC *.c)
+file(GLOB INC *.h)
 if (BUILD_EXT)
-    file(GLOB SRC *.c ext/*.c)
-    file(GLOB INC *.h ext/*.h)
-else ()
-    file(GLOB SRC *.c)
-    file(GLOB INC *.h)
+    file(GLOB SRC_EXT ext/*.c)
+    file(GLOB INC_EXT ext/*.h)
 endif ()
 
 if (BUILD_STATIC)
-    add_library(cx-static STATIC ${SRC})
+    add_library(cx-static STATIC ${SRC} ${SRC_EXT})
     set_target_properties(cx-static PROPERTIES OUTPUT_NAME cx)
     set_target_properties(cx-static PROPERTIES PUBLIC_HEADER "${INC}")
     set(TARGET_STATIC cx-static)
 endif ()
 
 if (BUILD_SHARED)
-    add_library(cx SHARED ${SRC})
+    add_library(cx SHARED ${SRC} ${SRC_EXT})
     set_target_properties(cx PROPERTIES PUBLIC_HEADER "${INC}")
     set_target_properties(cx PROPERTIES VERSION 0.0.1 SOVERSION 0)
     set(TARGET_SHARED cx)
@@ -27,4 +26,10 @@ install(TARGETS ${TARGET_STATIC} ${TARGET_SHARED}
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     PUBLIC_HEADER DESTINATION include
+)
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/src/ext" # source directory
+        DESTINATION "include" # target directory
+        FILES_MATCHING # install only matched files
+        PATTERN "*.h" # select header files
 )

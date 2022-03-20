@@ -4,7 +4,7 @@
 #include <cmocka.h>
 #include <pthread.h>
 #include <unistd.h>
-#include "timer.h"
+#include "ext/timer.h"
 
 static void second_do_sth(struct timer *timer, void *arg)
 {

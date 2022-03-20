@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <cmocka.h>
 #include <unistd.h>
-#include "task.h"
+#include "ext/task.h"
 
 static int loop_test(void *arg)
 {

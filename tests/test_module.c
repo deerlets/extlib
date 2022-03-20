@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-#include "module.h"
+#include "ext/module.h"
 
 static void test_module(void **status)
 {

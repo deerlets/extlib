@@ -1,4 +1,4 @@
-#include "module.h"
+#include "ext/module.h"
 
 static int mock_module_init(void)
 {
