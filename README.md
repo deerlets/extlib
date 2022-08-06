@@ -1,6 +1,6 @@
-# Extlibc
+# Extlib
 
-[![Build status](https://ci.appveyor.com/api/projects/status/xw7be399o260xftd?svg=true)](https://ci.appveyor.com/project/yonzkon/extlibc)
+[![Build status](https://ci.appveyor.com/api/projects/status/xw7be399o260xftd?svg=true)](https://ci.appveyor.com/project/yonzkon/extlib)
 
 Extension for libc
 
@@ -8,6 +8,7 @@ Extension for libc
 
 - Linux
 - MacOS
+- arm-none-eabi-gcc with newlib
 
 ## Build
 ```
