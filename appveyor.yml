@@ -29,7 +29,7 @@ for:
     build: off
     build_script:
       - mkdir build && cd build
-      - cmake .. -DBUILD_TESTS=on -DBUILD_EXT=on
+      - cmake .. -DBUILD_TESTS=on -DBUILD_POSIX=on
       - make
     test_script:
       - make test

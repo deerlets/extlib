@@ -1,3 +1,4 @@
+#include "module.h"
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -5,8 +6,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <dirent.h>
-#include "extlist.h"
-#include "module.h"
+#include "listx.h"
 
 #define MODULE_ERRMSG_SIZE 512
 

@@ -1,4 +1,4 @@
-#include "ext/module.h"
+#include "posix/module.h"
 
 static int mock_module_init(void)
 {
