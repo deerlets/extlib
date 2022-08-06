@@ -1,5 +1,5 @@
-#ifndef __EXT_ERR_H
-#define __EXT_ERR_H
+#ifndef __ERRX_H
+#define __ERRX_H
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,8 +1,8 @@
+#include "errx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "extlist.h"
-#include "exterr.h"
+#include "listx.h"
 
 #define NR_SERVICE 919
 #define tag_hash_fn(tag) (tag % NR_SERVICE)

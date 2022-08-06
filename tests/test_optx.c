@@ -4,7 +4,7 @@
 #include <cmocka.h>
 #include <stdio.h>
 #include <string.h>
-#include "extopt.h"
+#include "optx.h"
 
 static int argc = 8;
 static char *argv[] = {
