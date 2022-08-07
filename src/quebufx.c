@@ -1,4 +1,5 @@
 #include "quebufx.h"
+#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -38,127 +39,105 @@ void quebuf_delete(quebuf_t *self)
     }
 }
 
-int quebuf_realloc(quebuf_t *self, size_t len)
-{
-    void *newbuf = realloc(self->rawbuf, len);
-    if (newbuf) {
-        self->rawbuf = newbuf;
-        self->size = len;
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
-char *quebuf_rawbuf_out_pos(quebuf_t *self)
-{
-    return self->rawbuf + self->offset_out;
-}
-
-char *quebuf_rawbuf_in_pos(quebuf_t *self)
-{
-    return self->rawbuf + self->offset_in;
-}
-
 size_t quebuf_size(quebuf_t *self)
 {
     return self->size;
 }
 
-size_t quebuf_garbage(quebuf_t *self)
-{
-    return self->offset_out;
-}
-
 size_t quebuf_used(quebuf_t *self)
 {
-    return self->offset_in - self->offset_out;
+    if (self->offset_in >= self->offset_out)
+        return self->offset_in - self->offset_out;
+    else
+        return self->offset_in + (self->size - self->offset_out);
 }
 
 size_t quebuf_spare(quebuf_t *self)
 {
-    return self->size - self->offset_in;
+    return self->size - quebuf_used(self);
 }
 
-size_t quebuf_collect(quebuf_t *self, int policy)
+static char *quebuf_in_pos(quebuf_t *self)
 {
-    int policy_do = 1;
-
-    if (policy & QUEBUF_COLLECT_POLICY_LESS_SPARE) {
-        if (quebuf_spare(self) > self->size>>2)
-            policy_do = 0;
-    }
-
-    if (policy & QUEBUF_COLLECT_POLICY_LARGE_GARBAGE) {
-        if (quebuf_garbage(self) < self->size>>2)
-            policy_do = 0;
-    }
-
-    // condition 0: unsed == 0
-    // condition 1: policy_do == 1
-    if (!quebuf_used(self)) {
-        self->offset_in = self->offset_out = 0;
-    } else if (policy_do) {
-        /* method 1
-        self->offset_in -= self->offset_out;
-        memmove(self->rawbuf, quebuf_rawbuf_out_pos(self), self->offset_in);
-        self->offset_out = 0;
-        */
-        memmove(self->rawbuf, quebuf_rawbuf_out_pos(self), quebuf_used(self));
-        self->offset_in = quebuf_used(self);
-        self->offset_out = 0;
-    }
-
-    return quebuf_spare(self);
+    return self->rawbuf + self->offset_in;
 }
 
-size_t quebuf_offset_out_head(quebuf_t *self, size_t len)
+static char *quebuf_out_pos(quebuf_t *self)
 {
-    self->offset_out += len;
-
-    if (self->offset_out > self->offset_in)
-        self->offset_out = self->offset_in;
-
-    return quebuf_used(self);
+    return self->rawbuf + self->offset_out;
 }
 
-size_t quebuf_offset_in_head(quebuf_t *self, size_t len)
+void quebuf_in_head(quebuf_t *self, size_t len)
 {
-    self->offset_in += len;
-
-    if (self->offset_in > self->size)
-        self->offset_in = self->size;
-
-    return quebuf_spare(self);
+    assert(quebuf_spare(self) >= len);
+    self->offset_in = (self->offset_in + len) % self->size;
 }
 
-size_t quebuf_peek(quebuf_t *self, void *ptr, size_t len)
+void quebuf_out_head(quebuf_t *self, size_t len)
 {
-    size_t len_can_out = len <= quebuf_used(self) ? len : quebuf_used(self);
-    memcpy(ptr, quebuf_rawbuf_out_pos(self), len_can_out);
-
-    return len_can_out;
-}
-
-size_t quebuf_read(quebuf_t *self, void *ptr, size_t len)
-{
-    int nread = quebuf_peek(self, ptr, len);
-    quebuf_offset_out_head(self, nread);
-
-    return nread;
+    assert(quebuf_used(self) >= len);
+    self->offset_out = (self->offset_out + len) % self->size;
 }
 
 size_t quebuf_write(quebuf_t *self, const void *ptr, size_t len)
 {
-    if (len > quebuf_spare(self))
-        quebuf_collect(self, QUEBUF_COLLECT_POLICY_NONE);
+    assert(len < self->size);
+    size_t cpy_cnt = 0;
 
-    if (len > quebuf_spare(self))
-        quebuf_realloc(self, self->size > len ? self->size<<1 : len<<1);
+    if (self->offset_in >= self->offset_out) {
+        size_t spare_right = self->size - self->offset_in;
+        size_t spare_left = self->offset_out;
+        if (len <= spare_right) {
+            memcpy(quebuf_in_pos(self), ptr, len);
+            cpy_cnt += len;
+        } else {
+            memcpy(quebuf_in_pos(self), ptr, spare_right);
+            cpy_cnt += spare_right;
+            if (len - spare_right <= spare_left) {
+                memcpy(self->rawbuf, ptr + cpy_cnt, len - spare_right);
+                cpy_cnt += len - spare_right;
+            } else {
+                memcpy(self->rawbuf, ptr + cpy_cnt, spare_left);
+                cpy_cnt += spare_left;
+            }
+        }
+    } else {
+        size_t spare = self->offset_out - self->offset_in;
+        if (len <= spare) {
+            memcpy(quebuf_in_pos(self), ptr, len);
+            cpy_cnt += len;
+        } else {
+            memcpy(quebuf_in_pos(self), ptr, spare);
+            cpy_cnt += spare;
+        }
+    }
 
-    size_t len_can_in = len <= quebuf_spare(self) ? len : quebuf_spare(self);
-    memcpy(quebuf_rawbuf_in_pos(self), ptr, len_can_in);
-    quebuf_offset_in_head(self, len_can_in);
+    quebuf_in_head(self, cpy_cnt);
+    return cpy_cnt;
+}
 
-    return len_can_in;
+size_t quebuf_peek(quebuf_t *self, void *ptr, size_t size)
+{
+    size_t cpy_cnt = quebuf_used(self);
+    if (size < cpy_cnt)
+        cpy_cnt = size;
+
+    if (self->offset_in >= self->offset_out) {
+        memcpy(ptr, quebuf_out_pos(self), cpy_cnt);
+    }
+    else {
+        size_t cpy_right = self->size - self->offset_out;
+        size_t cpy_left = cpy_cnt - cpy_right;
+        memcpy(ptr, quebuf_out_pos(self), cpy_right);
+        memcpy(ptr + cpy_right, self->rawbuf, cpy_left);
+    }
+
+    return cpy_cnt;
+}
+
+size_t quebuf_read(quebuf_t *self, void *ptr, size_t size)
+{
+    size_t cpy_cnt = quebuf_peek(self, ptr, size);
+    quebuf_out_head(self, cpy_cnt);
+    return cpy_cnt;
 }
