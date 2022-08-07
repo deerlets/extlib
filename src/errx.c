@@ -7,7 +7,7 @@
 #define NR_SERVICE 919
 #define tag_hash_fn(tag) (tag % NR_SERVICE)
 
-struct exterr {
+struct errx {
     int __errno;
     const char *errmsg;
     struct hlist_node hnode;
@@ -28,14 +28,14 @@ static unsigned int calc_tag(const void *buf, size_t len)
     return retval;
 }
 
-static struct exterr *find_exterr(int __errno)
+static struct errx *find_errx(int __errno)
 {
     char buffer[32] = {0};
     snprintf(buffer, sizeof(buffer), "%d", __errno);
     unsigned int tag = calc_tag(buffer, strlen(buffer));
 
     struct hlist_head *head = &err_hlist[tag_hash_fn(tag)];
-    struct exterr *pos;
+    struct errx *pos;
     hlist_for_each_entry(pos, head, hnode) {
         if (pos->__errno == __errno)
             return pos;
@@ -44,15 +44,15 @@ static struct exterr *find_exterr(int __errno)
     return NULL;
 }
 
-#define EXTERR_INIT_GEN(name, errmsg) exterr_register(EXTERR_##name, errmsg);
+#define ERRX_INIT_GEN(name, errmsg) errx_register(ERRX_##name, errmsg);
 static __attribute__((constructor))
-void exterr_init() { EXTERR_ERRNO_MAP(EXTERR_INIT_GEN) }
-#undef EXTERR_INIT_GEN
+void errx_init() { ERRX_ERRNO_MAP(ERRX_INIT_GEN) }
+#undef ERRX_INIT_GEN
 
 static __attribute__((destructor))
-void exterr_fini()
+void errx_fini()
 {
-    struct exterr *pos, *n;
+    struct errx *pos, *n;
     list_for_each_entry_safe(pos, n, &err_list, node) {
         hlist_del_init(&pos->hnode);
         list_del_init(&pos->node);
@@ -60,12 +60,12 @@ void exterr_fini()
     }
 }
 
-int exterr_register(int __errno, const char *errmsg)
+int errx_register(int __errno, const char *errmsg)
 {
-    if (find_exterr(__errno))
+    if (find_errx(__errno))
         return -1;
 
-    struct exterr *err = (struct exterr *)malloc(sizeof(*err));
+    struct errx *err = (struct errx *)malloc(sizeof(*err));
     err->__errno = __errno;
     err->errmsg = errmsg;
     INIT_HLIST_NODE(&err->hnode);
@@ -80,9 +80,9 @@ int exterr_register(int __errno, const char *errmsg)
     return 0;
 }
 
-const char *ext_strerr(int __errno)
+const char *errx_strerr(int __errno)
 {
-    struct exterr *err = find_exterr(__errno);
+    struct errx *err = find_errx(__errno);
     if (err) return err->errmsg;
     return "Unknown errno";
 }
