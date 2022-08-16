@@ -51,8 +51,10 @@ int apicore_poll(struct apicore *core, int timeout)
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
-            LOG_INFO("recv: %s", autobuf_read_pos(pos_fd->rxbuf));
+            LOG_INFO("%s", autobuf_read_pos(pos_fd->rxbuf));
             autobuf_read_head(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
+            assert(pos_fd->sink->ops.send);
+            pos_fd->sink->ops.send(pos_fd->sink, pos_fd->fd, "alive", 5);
         }
     }
 
@@ -79,26 +81,6 @@ int apicore_close(struct apicore *core, int fd)
     if (sinkfd->sink && sinkfd->sink->ops.close)
         sinkfd->sink->ops.close(sinkfd->sink, fd);
     return 0;
-}
-
-int apicore_send(struct apicore *core, int fd, const void *buf, size_t len)
-{
-    struct sinkfd *sinkfd = to_sinkfd(&core->sinkfds, fd);
-    if (sinkfd == NULL)
-        return -1;
-    if (sinkfd->sink == NULL || sinkfd->sink->ops.send == NULL)
-        return -1;
-    return sinkfd->sink->ops.send(sinkfd->sink, fd, buf, len);
-}
-
-int apicore_recv(struct apicore *core, int fd, void *buf, size_t size)
-{
-    struct sinkfd *sinkfd = to_sinkfd(&core->sinkfds, fd);
-    if (sinkfd == NULL)
-        return -1;
-    if (sinkfd->sink == NULL || sinkfd->sink->ops.recv == NULL)
-        return -1;
-    return sinkfd->sink->ops.recv(sinkfd->sink, fd, buf, size);
 }
 
 void apisink_init(struct apisink *sink, const char *name, apisink_ops_t ops)

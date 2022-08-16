@@ -10,6 +10,7 @@
 #include <sys/un.h>
 #include "apix.h"
 #include "apix-posix.h"
+#include "logx.h"
 
 #define UNIX_ADDR "test_apisink_unix"
 
@@ -34,6 +35,10 @@ static void *client_thread(void *args)
 
     sleep(1);
     rc = send(fd, "hello", 5, 0);
+
+    char buf[256] = {0};
+    rc = recv(fd, buf, sizeof(buf), 0);
+    LOG_INFO("%s", buf);
 
     client_finished = 1;
     close(fd);
