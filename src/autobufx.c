@@ -50,14 +50,34 @@ int autobuf_realloc(autobuf_t *self, size_t len)
     }
 }
 
-char *autobuf_out_pos(autobuf_t *self)
+char *autobuf_read_pos(autobuf_t *self)
 {
     return self->rawbuf + self->offset_out;
 }
 
-char *autobuf_in_pos(autobuf_t *self)
+char *autobuf_write_pos(autobuf_t *self)
 {
     return self->rawbuf + self->offset_in;
+}
+
+size_t autobuf_read_head(autobuf_t *self, size_t len)
+{
+    self->offset_out += len;
+
+    if (self->offset_out > self->offset_in)
+        self->offset_out = self->offset_in;
+
+    return autobuf_used(self);
+}
+
+size_t autobuf_write_head(autobuf_t *self, size_t len)
+{
+    self->offset_in += len;
+
+    if (self->offset_in > self->size)
+        self->offset_in = self->size;
+
+    return autobuf_spare(self);
 }
 
 size_t autobuf_size(autobuf_t *self)
@@ -88,10 +108,10 @@ size_t autobuf_tidy(autobuf_t *self)
                autobuf_garbage(self) > self->size>>2) {
         /* method 1
         self->offset_in -= self->offset_out;
-        memmove(self->rawbuf, autobuf_out_pos(self), self->offset_in);
+        memmove(self->rawbuf, autobuf_read_pos(self), self->offset_in);
         self->offset_out = 0;
         */
-        memmove(self->rawbuf, autobuf_out_pos(self), autobuf_used(self));
+        memmove(self->rawbuf, autobuf_read_pos(self), autobuf_used(self));
         self->offset_in = autobuf_used(self);
         self->offset_out = 0;
     }
@@ -99,37 +119,17 @@ size_t autobuf_tidy(autobuf_t *self)
     return autobuf_spare(self);
 }
 
-size_t autobuf_out_head(autobuf_t *self, size_t len)
-{
-    self->offset_out += len;
-
-    if (self->offset_out > self->offset_in)
-        self->offset_out = self->offset_in;
-
-    return autobuf_used(self);
-}
-
-size_t autobuf_in_head(autobuf_t *self, size_t len)
-{
-    self->offset_in += len;
-
-    if (self->offset_in > self->size)
-        self->offset_in = self->size;
-
-    return autobuf_spare(self);
-}
-
 size_t autobuf_peek(autobuf_t *self, void *ptr, size_t len)
 {
     size_t len_can_out = len <= autobuf_used(self) ? len : autobuf_used(self);
-    memcpy(ptr, autobuf_out_pos(self), len_can_out);
+    memcpy(ptr, autobuf_read_pos(self), len_can_out);
     return len_can_out;
 }
 
 size_t autobuf_read(autobuf_t *self, void *ptr, size_t len)
 {
     int nread = autobuf_peek(self, ptr, len);
-    autobuf_out_head(self, nread);
+    autobuf_read_head(self, nread);
     return nread;
 }
 
@@ -141,8 +141,8 @@ size_t autobuf_write(autobuf_t *self, const void *ptr, size_t len)
     }
 
     size_t len_can_in = len <= autobuf_spare(self) ? len : autobuf_spare(self);
-    memcpy(autobuf_in_pos(self), ptr, len_can_in);
-    autobuf_in_head(self, len_can_in);
+    memcpy(autobuf_write_pos(self), ptr, len_can_in);
+    autobuf_write_head(self, len_can_in);
 
     return len_can_in;
 }

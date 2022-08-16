@@ -51,8 +51,8 @@ int apicore_poll(struct apicore *core, int timeout)
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
-            LOG_INFO("recv: %s", autobuf_out_pos(pos_fd->rxbuf));
-            autobuf_out_head(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
+            LOG_INFO("recv: %s", autobuf_read_pos(pos_fd->rxbuf));
+            autobuf_read_head(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
         }
     }
 

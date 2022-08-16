@@ -15,15 +15,16 @@ autobuf_t *autobuf_new(size_t size);
 void autobuf_delete(autobuf_t *self);
 int autobuf_realloc(autobuf_t *self, size_t len);
 
-char *autobuf_out_pos(autobuf_t *self);
-char *autobuf_in_pos(autobuf_t *self);
+char *autobuf_read_pos(autobuf_t *self);
+char *autobuf_write_pos(autobuf_t *self);
+size_t autobuf_read_head(autobuf_t *self, size_t len);
+size_t autobuf_write_head(autobuf_t *self, size_t len);
+
 size_t autobuf_size(autobuf_t *self);
 size_t autobuf_garbage(autobuf_t *self);
 size_t autobuf_used(autobuf_t *self);
 size_t autobuf_spare(autobuf_t *self);
 size_t autobuf_tidy(autobuf_t *self);
-size_t autobuf_out_head(autobuf_t *self, size_t len);
-size_t autobuf_in_head(autobuf_t *self, size_t len);
 
 size_t autobuf_peek(autobuf_t *self, void *ptr, size_t len);
 size_t autobuf_read(autobuf_t *self, void *ptr, size_t len);
