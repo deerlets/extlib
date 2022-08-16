@@ -16,6 +16,10 @@ add_executable(test-ringbufx test_ringbufx.c)
 target_link_libraries(test-ringbufx cmocka cx)
 add_test(test-ringbufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ringbufx)
 
+add_executable(test-autobufx test_autobufx.c)
+target_link_libraries(test-autobufx cmocka cx)
+add_test(test-autobufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-autobufx)
+
 if (BUILD_POSIX)
 add_executable(test-task test_task.c)
 target_link_libraries(test-task cmocka cx)

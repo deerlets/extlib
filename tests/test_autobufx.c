@@ -36,7 +36,7 @@ static void test_autobuf(void **status)
     assert_true(memcmp(hello_msg, msg, strlen(hello_msg)) == 0);
     msg[nread] = 0;
 
-    autobuf_collect(buf);
+    autobuf_tidy(buf);
     assert_true(autobuf_size(buf) == AUTOBUF_DEFAULT_SIZE);
     assert_true(autobuf_garbage(buf) == 0);
     assert_true(autobuf_used(buf) == sizeof(hello_msg)*(write_time-read_time));
