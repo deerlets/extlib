@@ -146,13 +146,13 @@ int apicore_enable_posix(struct apicore *core)
 {
     //FD_ZERO(&__unix_sink.fds);
     apisink_init(&__unix_sink.sink, APISINK_UNIX, unix_ops);
-    apicore_register(core, &__unix_sink.sink);
+    apicore_add_sink(core, &__unix_sink.sink);
     return 0;
 }
 
 void apicore_disable_posix(struct apicore *core)
 {
-    apicore_unregister(core, &__unix_sink.sink);
+    apicore_del_sink(core, &__unix_sink.sink);
     apisink_fini(&__unix_sink.sink);
 }
 

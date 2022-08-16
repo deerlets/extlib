@@ -12,6 +12,18 @@ extern "C" {
 
 #define APISINK_UNIX "apisink_unix"
 
+typedef enum {
+    IPC_MODE_PIPE = 0,
+    IPC_MODE_SHM,
+    IPC_MODE_SHM_MEMFD,
+    IPC_MODE_SHM_FTOK,
+    IPC_MODE_SERIAL,
+    IPC_MODE_UNIX,
+    IPC_MODE_TCP,
+    IPC_MODE_UDP,
+    IPC_MODE_HTTP,
+} ipc_mode_t;
+
 /*fd*/ int apicore_open_pipe(struct apicore *core, /*out*/ int *txfd, /*out*/ int *rxfd);
 /*fd*/ int apicore_open_shm(struct apicore *core, const char *txname, const char *rxname);
 /*fd*/ int apicore_open_shm_memfd(struct apicore *core, /*out*/ int *txfd, /*out*/ int *rxfd);

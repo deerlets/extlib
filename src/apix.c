@@ -27,7 +27,7 @@ void apicore_destroy(struct apicore *core)
 
     struct apisink *pos_sink, *n_sink;
     list_for_each_entry_safe(pos_sink, n_sink, &core->sinks, node) {
-        apicore_unregister(core, pos_sink);
+        apicore_del_sink(core, pos_sink);
         apisink_fini(pos_sink);
     }
 
@@ -118,10 +118,10 @@ void apisink_fini(struct apisink *sink)
         sinkfd_destroy(pos);
 
     if (sink->core)
-        apicore_unregister(sink->core, sink);
+        apicore_del_sink(sink->core, sink);
 }
 
-int apicore_register(struct apicore *core, struct apisink *sink)
+int apicore_add_sink(struct apicore *core, struct apisink *sink)
 {
     struct apisink *pos;
     list_for_each_entry(pos, &core->sinks, node) {
@@ -134,7 +134,7 @@ int apicore_register(struct apicore *core, struct apisink *sink)
     return 0;
 }
 
-void apicore_unregister(struct apicore *core, struct apisink *sink)
+void apicore_del_sink(struct apicore *core, struct apisink *sink)
 {
     list_del_init(&sink->node);
     sink->core = NULL;

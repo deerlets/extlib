@@ -2,23 +2,10 @@
 #define __APIX_H
 
 #include <stddef.h>
-#include <listx.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef enum {
-    IPC_MODE_PIPE = 0,
-    IPC_MODE_SHM,
-    IPC_MODE_SHM_MEMFD,
-    IPC_MODE_SHM_FTOK,
-    IPC_MODE_SERIAL,
-    IPC_MODE_UNIX,
-    IPC_MODE_TCP,
-    IPC_MODE_UDP,
-    IPC_MODE_HTTP,
-} ipc_mode_t;
 
 /*
  * apinode
@@ -44,23 +31,6 @@ int apicore_open(struct apicore *core, const char *name, const void *addr);
 int apicore_close(struct apicore *core, int fd);
 int apicore_send(struct apicore *core, int fd, const void *buf, size_t len);
 int apicore_recv(struct apicore *core, int fd, void *buf, size_t size);
-
-/*
- * apisink: sink means ipc channel
- */
-
-struct apisink;
-
-typedef struct apisink_ops {
-    int (*open)(struct apisink *sink, const void *addr);
-    int (*close)(struct apisink *sink, int fd);
-    int (*send)(struct apisink *sink, int fd, const void *buf, size_t len);
-    int (*recv)(struct apisink *sink, int fd, void *buf, size_t size);
-    int (*poll)(struct apisink *sink, int timeout);
-} apisink_ops_t;
-
-int apicore_register(struct apicore *core, struct apisink *sink);
-void apicore_unregister(struct apicore *core, struct apisink *sink);
 
 #ifdef __cplusplus
 }
