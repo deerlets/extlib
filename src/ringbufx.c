@@ -1,21 +1,21 @@
-#include "quebufx.h"
+#include "ringbufx.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 
-struct __queue_buf {
+struct ringbuf {
     char *rawbuf;
     size_t size;
     size_t offset_in;
     size_t offset_out;
 };
 
-quebuf_t *quebuf_new(size_t size)
+ringbuf_t *ringbuf_new(size_t size)
 {
     if (size == 0)
-        size = QUEBUF_DEFAULT_SIZE;
+        size = RINGBUF_DEFAULT_SIZE;
 
-    quebuf_t *self = (quebuf_t*)calloc(sizeof(quebuf_t), 1);
+    ringbuf_t *self = (ringbuf_t*)calloc(sizeof(ringbuf_t), 1);
     if (!self) return NULL;
 
     self->rawbuf = (char*)calloc(size, 1);
@@ -31,7 +31,7 @@ quebuf_t *quebuf_new(size_t size)
     return self;
 }
 
-void quebuf_delete(quebuf_t *self)
+void ringbuf_delete(ringbuf_t *self)
 {
     if (self) {
         free(self->rawbuf);
@@ -39,12 +39,12 @@ void quebuf_delete(quebuf_t *self)
     }
 }
 
-size_t quebuf_size(quebuf_t *self)
+size_t ringbuf_size(ringbuf_t *self)
 {
     return self->size;
 }
 
-size_t quebuf_used(quebuf_t *self)
+size_t ringbuf_used(ringbuf_t *self)
 {
     if (self->offset_in >= self->offset_out)
         return self->offset_in - self->offset_out;
@@ -52,34 +52,34 @@ size_t quebuf_used(quebuf_t *self)
         return self->offset_in + (self->size - self->offset_out);
 }
 
-size_t quebuf_spare(quebuf_t *self)
+size_t ringbuf_spare(ringbuf_t *self)
 {
-    return self->size - quebuf_used(self);
+    return self->size - ringbuf_used(self);
 }
 
-static char *quebuf_in_pos(quebuf_t *self)
+static char *ringbuf_in_pos(ringbuf_t *self)
 {
     return self->rawbuf + self->offset_in;
 }
 
-static char *quebuf_out_pos(quebuf_t *self)
+static char *ringbuf_out_pos(ringbuf_t *self)
 {
     return self->rawbuf + self->offset_out;
 }
 
-void quebuf_in_head(quebuf_t *self, size_t len)
+void ringbuf_in_head(ringbuf_t *self, size_t len)
 {
-    assert(quebuf_spare(self) >= len);
+    assert(ringbuf_spare(self) >= len);
     self->offset_in = (self->offset_in + len) % self->size;
 }
 
-void quebuf_out_head(quebuf_t *self, size_t len)
+void ringbuf_out_head(ringbuf_t *self, size_t len)
 {
-    assert(quebuf_used(self) >= len);
+    assert(ringbuf_used(self) >= len);
     self->offset_out = (self->offset_out + len) % self->size;
 }
 
-size_t quebuf_write(quebuf_t *self, const void *ptr, size_t len)
+size_t ringbuf_write(ringbuf_t *self, const void *ptr, size_t len)
 {
     assert(len < self->size);
     size_t cpy_cnt = 0;
@@ -88,10 +88,10 @@ size_t quebuf_write(quebuf_t *self, const void *ptr, size_t len)
         size_t spare_right = self->size - self->offset_in;
         size_t spare_left = self->offset_out;
         if (len <= spare_right) {
-            memcpy(quebuf_in_pos(self), ptr, len);
+            memcpy(ringbuf_in_pos(self), ptr, len);
             cpy_cnt += len;
         } else {
-            memcpy(quebuf_in_pos(self), ptr, spare_right);
+            memcpy(ringbuf_in_pos(self), ptr, spare_right);
             cpy_cnt += spare_right;
             if (len - spare_right <= spare_left) {
                 memcpy(self->rawbuf, ptr + cpy_cnt, len - spare_right);
@@ -104,40 +104,40 @@ size_t quebuf_write(quebuf_t *self, const void *ptr, size_t len)
     } else {
         size_t spare = self->offset_out - self->offset_in;
         if (len <= spare) {
-            memcpy(quebuf_in_pos(self), ptr, len);
+            memcpy(ringbuf_in_pos(self), ptr, len);
             cpy_cnt += len;
         } else {
-            memcpy(quebuf_in_pos(self), ptr, spare);
+            memcpy(ringbuf_in_pos(self), ptr, spare);
             cpy_cnt += spare;
         }
     }
 
-    quebuf_in_head(self, cpy_cnt);
+    ringbuf_in_head(self, cpy_cnt);
     return cpy_cnt;
 }
 
-size_t quebuf_peek(quebuf_t *self, void *ptr, size_t size)
+size_t ringbuf_peek(ringbuf_t *self, void *ptr, size_t size)
 {
-    size_t cpy_cnt = quebuf_used(self);
+    size_t cpy_cnt = ringbuf_used(self);
     if (size < cpy_cnt)
         cpy_cnt = size;
 
     if (self->offset_in >= self->offset_out) {
-        memcpy(ptr, quebuf_out_pos(self), cpy_cnt);
+        memcpy(ptr, ringbuf_out_pos(self), cpy_cnt);
     }
     else {
         size_t cpy_right = self->size - self->offset_out;
         size_t cpy_left = cpy_cnt - cpy_right;
-        memcpy(ptr, quebuf_out_pos(self), cpy_right);
+        memcpy(ptr, ringbuf_out_pos(self), cpy_right);
         memcpy(ptr + cpy_right, self->rawbuf, cpy_left);
     }
 
     return cpy_cnt;
 }
 
-size_t quebuf_read(quebuf_t *self, void *ptr, size_t size)
+size_t ringbuf_read(ringbuf_t *self, void *ptr, size_t size)
 {
-    size_t cpy_cnt = quebuf_peek(self, ptr, size);
-    quebuf_out_head(self, cpy_cnt);
+    size_t cpy_cnt = ringbuf_peek(self, ptr, size);
+    ringbuf_out_head(self, cpy_cnt);
     return cpy_cnt;
 }

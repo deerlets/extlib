@@ -12,9 +12,9 @@ add_executable(test-optx test_optx.c)
 target_link_libraries(test-optx cmocka cx)
 add_test(test-optx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-optx)
 
-add_executable(test-quebufx test_quebufx.c)
-target_link_libraries(test-quebufx cmocka cx)
-add_test(test-quebufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-quebufx)
+add_executable(test-ringbufx test_ringbufx.c)
+target_link_libraries(test-ringbufx cmocka cx)
+add_test(test-ringbufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ringbufx)
 
 if (BUILD_POSIX)
 add_executable(test-task test_task.c)
