@@ -1,5 +1,5 @@
-#include "apix-inl.h"
 #include "apix.h"
+#include "apix-inl.h"
 #include "autobufx.h"
 #include <assert.h>
 #include <errno.h>

@@ -4,11 +4,13 @@
 #include "autobufx.h"
 #include <assert.h>
 #include <errno.h>
+#include <string.h>
+#include <stdlib.h>
 #include <listx.h>
 #include <logx.h>
 #include <sys/select.h>
 
-#ifdef __unix__
+#if defined __unix__ || defined __linux__ || defined __APPLE__
 
 #include <unistd.h>
 #include <sys/socket.h>
