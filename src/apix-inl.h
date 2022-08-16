@@ -27,8 +27,12 @@ struct apisink {
     struct list_head node;
 };
 
+void apisink_init(struct apisink *sink, const char *name, apisink_ops_t ops);
+void apisink_fini(struct apisink *sink);
+
 struct sinkfd {
     int fd;
+    int listen;
     autobuf_t *txbuf;
     autobuf_t *rxbuf;
     struct apisink *sink;

@@ -28,7 +28,7 @@ void apicore_destroy(struct apicore *core)
     struct apisink *pos_sink, *n_sink;
     list_for_each_entry_safe(pos_sink, n_sink, &core->sinks, node) {
         apicore_unregister(core, pos_sink);
-        apisink_destroy(pos_sink);
+        apisink_fini(pos_sink);
     }
 
     free(core);
@@ -36,10 +36,23 @@ void apicore_destroy(struct apicore *core)
 
 int apicore_poll(struct apicore *core, int timeout)
 {
-    struct apisink *pos;
-    list_for_each_entry(pos, &core->sinks, node) {
-        if (pos->ops.poll(pos) != 0) {
+    int cnt = 0;
+    struct list_head *pos;
+    list_for_each(pos, &core->sinks)
+        cnt++;
+
+    struct apisink *pos_sink;
+    list_for_each_entry(pos_sink, &core->sinks, node) {
+        if (pos_sink->ops.poll(pos_sink, timeout / cnt) != 0) {
             LOG_ERROR("%s", strerror(errno));
+        }
+    }
+
+    struct sinkfd *pos_fd;
+    list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
+        if (autobuf_used(pos_fd->rxbuf)) {
+            LOG_INFO("recv: %s", autobuf_out_pos(pos_fd->rxbuf));
+            autobuf_out_head(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
         }
     }
 
@@ -88,21 +101,24 @@ int apicore_recv(struct apicore *core, int fd, void *buf, size_t size)
     return sinkfd->sink->ops.recv(sinkfd->sink, fd, buf, size);
 }
 
-struct apisink *apisink_new(const char *name, apisink_ops_t ops)
+void apisink_init(struct apisink *sink, const char *name, apisink_ops_t ops)
 {
     assert(strlen(name) < APISINK_NAME_SIZE);
-    struct apisink *sink = malloc(sizeof(struct apisink));
+    INIT_LIST_HEAD(&sink->sinkfds);
     INIT_LIST_HEAD(&sink->node);
     snprintf(sink->name, sizeof(sink->name), "%s", name);
     sink->ops = ops;
     sink->core = NULL;
-    return sink;
 }
 
-void apisink_destroy(struct apisink *sink)
+void apisink_fini(struct apisink *sink)
 {
-    apicore_unregister(sink->core, sink);
-    free(sink);
+    struct sinkfd *pos, *n;
+    list_for_each_entry_safe(pos, n, &sink->sinkfds, node_sink)
+        sinkfd_destroy(pos);
+
+    if (sink->core)
+        apicore_unregister(sink->core, sink);
 }
 
 int apicore_register(struct apicore *core, struct apisink *sink)
@@ -128,6 +144,7 @@ struct sinkfd *sinkfd_new()
 {
     struct sinkfd *sinkfd = malloc(sizeof(struct sinkfd));
     sinkfd->fd = 0;
+    sinkfd->listen = 0;
     sinkfd->txbuf = autobuf_new(0);
     sinkfd->rxbuf = autobuf_new(0);
     sinkfd->sink = NULL;

@@ -15,11 +15,11 @@
 #include <sys/un.h>
 
 static struct unix_sink {
-    struct apisink *sink;
+    struct apisink sink;
+    // for select
     fd_set fds;
     int nfds;
-    int fd_serv;
-} unix_sink;
+} __unix_sink;
 
 static int unix_open(struct apisink *sink, const void *addrname)
 {
@@ -47,9 +47,14 @@ static int unix_open(struct apisink *sink, const void *addrname)
 
     struct sinkfd *sinkfd = sinkfd_new();
     sinkfd->fd = fd;
+    sinkfd->listen = 1;
     sinkfd->sink = sink;
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
+
+    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
+    FD_SET(fd, &unix_sink->fds);
+    unix_sink->nfds = fd + 1;
 
     return fd;
 }
@@ -74,13 +79,15 @@ static int unix_recv(struct apisink *sink, int fd, void *buf, size_t size)
     return recv(fd, buf, size, 0);
 }
 
-static int unix_poll(struct apisink *sink)
+static int unix_poll(struct apisink *sink, int timeout)
 {
-    struct timeval tv = { 0, 0 };
-    fd_set recvfds;
-    memcpy(&recvfds, &unix_sink.fds, sizeof(recvfds));
+    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
 
-    int nr_recv_fds = select(unix_sink.nfds, &recvfds, NULL, NULL, &tv);
+    struct timeval tv = { timeout / 1000, timeout % 1000 * 1000 };
+    fd_set recvfds;
+    memcpy(&recvfds, &unix_sink->fds, sizeof(recvfds));
+
+    int nr_recv_fds = select(unix_sink->nfds, &recvfds, NULL, NULL, &tv);
     if (nr_recv_fds == -1) {
         if (errno == EINTR)
             return 0;
@@ -98,15 +105,22 @@ static int unix_poll(struct apisink *sink)
         nr_recv_fds--;
 
         // accept
-        if (pos->fd == unix_sink.fd_serv) {
+        if (pos->listen == 1) {
             int newfd = accept(pos->fd, NULL, NULL);
             if (newfd == -1) {
                 LOG_ERROR("[accept] (%d) %s", errno, strerror(errno));
                 continue;
             }
-            if (unix_sink.nfds < newfd + 1)
-                unix_sink.nfds = newfd + 1;
-            FD_SET(newfd, &unix_sink.fds);
+
+            struct sinkfd *sinkfd = sinkfd_new();
+            sinkfd->fd = newfd;
+            sinkfd->sink = sink;
+            list_add(&sinkfd->node_sink, &sink->sinkfds);
+            list_add(&sinkfd->node_core, &sink->core->sinkfds);
+
+            if (unix_sink->nfds < newfd + 1)
+                unix_sink->nfds = newfd + 1;
+            FD_SET(newfd, &unix_sink->fds);
         } else /* recv */ {
             autobuf_tidy(pos->rxbuf);
             int nread = recv(pos->fd, autobuf_in_pos(pos->rxbuf),
@@ -128,17 +142,16 @@ static apisink_ops_t unix_ops = {
 
 int apicore_enable_posix(struct apicore *core)
 {
-    assert(unix_sink.sink == NULL);
-    unix_sink.sink = apisink_new(APISINK_UNIX, unix_ops);
-    apicore_register(core, unix_sink.sink);
+    //FD_ZERO(&__unix_sink.fds);
+    apisink_init(&__unix_sink.sink, APISINK_UNIX, unix_ops);
+    apicore_register(core, &__unix_sink.sink);
     return 0;
 }
 
 void apicore_disable_posix(struct apicore *core)
 {
-    assert(unix_sink.sink);
-    apicore_unregister(core, unix_sink.sink);
-    unix_sink.sink = NULL;
+    apicore_unregister(core, &__unix_sink.sink);
+    apisink_fini(&__unix_sink.sink);
 }
 
 #endif

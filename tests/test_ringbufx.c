@@ -50,6 +50,8 @@ static void test_ringbuf(void **status)
     size_t nr_read_last = ringbuf_read(buf, buf_last, sizeof(buf_last));
     assert_true(nr_read_last == sizeof(msg_large) -
                 sizeof(buf_large) + sizeof(msg_last));
+
+    ringbuf_delete(buf);
 }
 
 int main(void)

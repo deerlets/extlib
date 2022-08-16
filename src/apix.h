@@ -56,11 +56,8 @@ typedef struct apisink_ops {
     int (*close)(struct apisink *sink, int fd);
     int (*send)(struct apisink *sink, int fd, const void *buf, size_t len);
     int (*recv)(struct apisink *sink, int fd, void *buf, size_t size);
-    int (*poll)(struct apisink *sink);
+    int (*poll)(struct apisink *sink, int timeout);
 } apisink_ops_t;
-
-struct apisink *apisink_new(const char *name, apisink_ops_t ops);
-void apisink_destroy(struct apisink *sink);
 
 int apicore_register(struct apicore *core, struct apisink *sink);
 void apicore_unregister(struct apicore *core, struct apisink *sink);
