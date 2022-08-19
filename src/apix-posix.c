@@ -1,14 +1,14 @@
 #include "apix-inl.h"
 #include "apix-posix.h"
-#include "apix.h"
 #include "autobufx.h"
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <listx.h>
-#include <logx.h>
 #include <sys/select.h>
+#include "stddefx.h"
+#include "listx.h"
+#include "logx.h"
 
 #if defined __unix__ || defined __linux__ || defined __APPLE__
 
@@ -73,11 +73,13 @@ static int unix_close(struct apisink *sink, int fd)
 
 static int unix_send(struct apisink *sink, int fd, const void *buf, size_t len)
 {
+    UNUSED(sink);
     return send(fd, buf, len, 0);
 }
 
 static int unix_recv(struct apisink *sink, int fd, void *buf, size_t size)
 {
+    UNUSED(sink);
     return recv(fd, buf, size, 0);
 }
 
