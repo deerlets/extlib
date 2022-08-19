@@ -19,7 +19,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
         int nr = srrp_read_one_packet(
             autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf), &pac);
         if (nr == -1) {
-            LOG_INFO("%s", autobuf_read_pos(sinkfd->rxbuf));
+            LOG_WARN("parse packet failed, %s", autobuf_read_pos(sinkfd->rxbuf));
             autobuf_read_advance(
                 sinkfd->rxbuf, strlen(autobuf_read_pos(sinkfd->rxbuf)) + 1);
             continue;
@@ -71,8 +71,8 @@ find_apiservice(struct list_head *services, const void *header, size_t len)
 static void service_add_handler(
     struct apicore *core, const char *content, struct sinkfd *sinkfd)
 {
-    char *header_start = strstr(content, "header:") + 7;
-    char *header_end = strstr(content, "}");
+    char *header_start = strstr(content, "header:'") + 8;
+    char *header_end = strstr(content, "'}");
 
     struct api_service *service = malloc(sizeof(*service));
     memset(service, 0, sizeof(*service));
@@ -88,8 +88,8 @@ static void service_add_handler(
 static void service_del_handler(
     struct apicore *core, const char *content, struct sinkfd *sinkfd)
 {
-    char *header_start = strstr(content, "header:") + 7;
-    char *header_end = strstr(content, "}");
+    char *header_start = strstr(content, "header:'") + 8;
+    char *header_end = strstr(content, "'}");
 
     struct api_service *serv = find_apiservice(
         &core->services, header_start, header_end - header_start);
@@ -118,44 +118,34 @@ struct apicore *apicore_new()
 
 void apicore_destroy(struct apicore *core)
 {
-    {
-        struct api_request *pos, *n;
-        list_for_each_entry_safe(pos, n, &core->requests, node) {
-            list_del_init(&pos->node);
-            free(pos);
-        }
+    struct api_request *pos_req, *n_req;
+    list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
+        list_del_init(&pos_req->node);
+        free(pos_req);
     }
 
-    {
-        struct api_response *pos, *n;
-        list_for_each_entry_safe(pos, n, &core->responses, node) {
-            list_del_init(&pos->node);
-            free(pos);
-        }
+    struct api_response *pos_resp, *n_resp;
+    list_for_each_entry_safe(pos_resp, n_resp, &core->responses, node) {
+        list_del_init(&pos_resp->node);
+        free(pos_resp);
     }
 
-    {
-        struct api_service *pos, *n;
-        list_for_each_entry_safe(pos, n, &core->services, node) {
-            list_del_init(&pos->node);
-            free(pos);
-        }
+    struct api_service *pos_serv, *n_serv;
+    list_for_each_entry_safe(pos_serv, n_serv, &core->services, node) {
+        list_del_init(&pos_serv->node);
+        free(pos_serv);
     }
 
-    {
-        struct sinkfd *pos, *n;
-        list_for_each_entry_safe(pos, n, &core->sinkfds, node_core) {
-            list_del_init(&pos->node_core);
-            free(pos);
-        }
+    struct sinkfd *pos_sinkfd, *n_sinkfd;
+    list_for_each_entry_safe(pos_sinkfd, n_sinkfd, &core->sinkfds, node_core) {
+        list_del_init(&pos_sinkfd->node_core);
+        free(pos_sinkfd);
     }
 
-    {
-        struct apisink *pos, *n;
-        list_for_each_entry_safe(pos, n, &core->sinks, node) {
-            apicore_del_sink(core, pos);
-            apisink_fini(pos);
-        }
+    struct apisink *pos_sink, *n_sink;
+    list_for_each_entry_safe(pos_sink, n_sink, &core->sinks, node) {
+        apicore_del_sink(core, pos_sink);
+        apisink_fini(pos_sink);
     }
 
     free(core);

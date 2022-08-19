@@ -42,8 +42,8 @@ static void *client_thread(void *args)
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("client recv response: %s", buf);
 
-    client_finished = 1;
     close(fd);
+    client_finished = 1;
     return NULL;
 }
 
@@ -65,20 +65,20 @@ static void *server_thread(void *args)
     }
 
     sleep(1);
-    const char req[] = ">0,$,42:/core/service/add{header:/hello/x}";
+    const char req[] = ">0,$,44:/core/service/add{header:'/hello/x'}";
     rc = send(fd, req, sizeof(req), 0);
 
     char buf[256] = {0};
-    rc = recv(fd, buf, sizeof(buf), 0); // recv response
+    rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv response: %s", buf);
 
-    rc = recv(fd, buf, sizeof(buf), 0); //recv request
+    rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
     const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
     rc = send(fd, resp, sizeof(resp), 0);
 
-    server_finished = 1;
     close(fd);
+    server_finished = 1;
     return NULL;
 }
 
