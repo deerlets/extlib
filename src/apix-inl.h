@@ -9,6 +9,12 @@
 #define API_HEADER_SIZE 256
 #define API_ERRMSG_SIZE 256
 
+#define APICORE_SERVICE_ADD "/core/service/add"
+#define APICORE_SERVICE_DEL "/core/service/del"
+
+#define API_REQUEST_ST_NONE 0
+#define API_REQUEST_ST_WAIT_RESPONSE 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25,6 +31,10 @@ struct apinode {
  */
 
 struct api_request {
+    void *raw;
+    size_t raw_len;
+    int state;
+
     struct sinkfd *sinkfd;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, need free
@@ -32,6 +42,9 @@ struct api_request {
 };
 
 struct api_response {
+    void *raw;
+    size_t raw_len;
+
     struct sinkfd *sinkfd;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, nedd free

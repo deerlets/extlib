@@ -24,11 +24,14 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
                 sinkfd->rxbuf, strlen(autobuf_read_pos(sinkfd->rxbuf)) + 1);
             continue;
         }
-        autobuf_read_advance(sinkfd->rxbuf, nr);
 
         if (pac.leader == SRRP_REQUEST_LEADER) {
             struct api_request *req = malloc(sizeof(*req));
             memset(req, 0, sizeof(*req));
+            req->raw = malloc(nr);
+            memcpy(req->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            req->raw_len = nr;
+            req->state = API_REQUEST_ST_NONE;
             req->sinkfd = sinkfd;
             strcpy(req->header, pac.header);
             req->content = strdup(pac.data);
@@ -37,12 +40,68 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
         } else if (pac.leader == SRRP_RESPONSE_LEADER) {
             struct api_response *resp = malloc(sizeof(*resp));
             memset(resp, 0, sizeof(*resp));
+            resp->raw = malloc(nr);
+            memcpy(resp->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            resp->raw_len = nr;
             resp->sinkfd = sinkfd;
             strcpy(resp->header, pac.header);
             resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
-            list_add(&resp->node, &core->requests);
+            list_add(&resp->node, &core->responses);
         }
+
+        free(pac.header);
+        free(pac.data);
+        autobuf_read_advance(sinkfd->rxbuf, nr);
+    }
+}
+
+static struct api_service *
+find_apiservice(struct list_head *services, const void *header, size_t len)
+{
+    struct api_service *pos;
+    list_for_each_entry(pos, services, node) {
+        if (memcmp(pos->header, header, len) == 0) {
+            return pos;
+        }
+    }
+    return NULL;
+}
+
+static void service_add_handler(
+    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+{
+    char *header_start = strstr(content, "header:") + 7;
+    char *header_end = strstr(content, "}");
+
+    struct api_service *service = malloc(sizeof(*service));
+    memset(service, 0, sizeof(*service));
+    memcpy(service->header, header_start, header_end - header_start);
+    service->sinkfd = sinkfd;
+    INIT_LIST_HEAD(&service->node);
+    list_add(&service->node, &core->services);
+
+    assert(sinkfd->sink->ops.send);
+    sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
+}
+
+static void service_del_handler(
+    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+{
+    char *header_start = strstr(content, "header:") + 7;
+    char *header_end = strstr(content, "}");
+
+    struct api_service *serv = find_apiservice(
+        &core->services, header_start, header_end - header_start);
+
+    if (serv == NULL || serv->sinkfd != sinkfd) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "SERVICE NOT FOUND", 17);
+    } else {
+        list_del(&serv->node);
+        free(serv);
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
     }
 }
 
@@ -120,21 +179,65 @@ int apicore_poll(struct apicore *core, int timeout)
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
             parse_packet(core, pos_fd);
-            assert(pos_fd->sink->ops.send);
-            pos_fd->sink->ops.send(pos_fd->sink, pos_fd->fd, "alive", 5);
         }
     }
 
-    struct api_request *pos_req;
-    list_for_each_entry(pos_req, &core->requests, node) {
-        // TODO
-        LOG_INFO("%s%s", pos_req->header, pos_req->content);
+    struct api_request *pos_req, *n_req;
+    list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
+        if (pos_req->state == API_REQUEST_ST_WAIT_RESPONSE)
+            continue;
+
+        LOG_INFO("poll request: %s%s", pos_req->header, pos_req->content);
+        if (strcmp(pos_req->header, APICORE_SERVICE_ADD) == 0) {
+            service_add_handler(core, pos_req->content, pos_req->sinkfd);
+            list_del(&pos_req->node);
+            free(pos_req->raw);
+            free(pos_req->content);
+            free(pos_req);
+        } else if (strcmp(pos_req->header, APICORE_SERVICE_DEL) == 0) {
+            service_del_handler(core, pos_req->content, pos_req->sinkfd);
+            list_del(&pos_req->node);
+            free(pos_req->raw);
+            free(pos_req->content);
+            free(pos_req);
+        } else {
+            struct api_service *serv = find_apiservice(
+                &core->services, pos_req->header, strlen(pos_req->header));
+            if (serv) {
+                assert(serv->sinkfd->sink->ops.send);
+                serv->sinkfd->sink->ops.send(
+                    serv->sinkfd->sink, serv->sinkfd->fd,
+                    pos_req->raw, pos_req->raw_len);
+                pos_req->state = API_REQUEST_ST_WAIT_RESPONSE;
+            } else {
+                pos_req->sinkfd->sink->ops.send(
+                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
+                    "SERVICE NOT FOUND", 17);
+                api_request_delete(pos_req);
+            }
+        }
     }
 
-    struct api_response *pos_resp;
-    list_for_each_entry(pos_resp, &core->responses, node) {
-        // TODO
-        LOG_INFO("%s%s", pos_resp->header, pos_resp->content);
+    struct api_response *pos_resp, *n_resp;
+    list_for_each_entry_safe(pos_resp, n_resp, &core->responses, node) {
+        LOG_INFO("poll response: %s%s", pos_resp->header, pos_resp->content);
+        struct api_request *pos_req, *n_req;
+        list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
+            if (strcmp(pos_req->header, pos_resp->header + 4) == 0) {
+                pos_req->sinkfd->sink->ops.send(
+                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
+                    pos_resp->raw, pos_resp->raw_len);
+                list_del(&pos_req->node);
+                free(pos_req->raw);
+                free(pos_req->content);
+                free(pos_req);
+                break;
+            }
+        }
+        list_del(&pos_resp->node);
+        free(pos_resp->raw);
+        free(pos_resp->content);
+        free(pos_resp);
     }
 
     return 0;
