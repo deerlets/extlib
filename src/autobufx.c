@@ -60,7 +60,7 @@ char *autobuf_write_pos(autobuf_t *self)
     return self->rawbuf + self->offset_in;
 }
 
-size_t autobuf_read_head(autobuf_t *self, size_t len)
+size_t autobuf_read_advance(autobuf_t *self, size_t len)
 {
     self->offset_out += len;
 
@@ -70,7 +70,7 @@ size_t autobuf_read_head(autobuf_t *self, size_t len)
     return autobuf_used(self);
 }
 
-size_t autobuf_write_head(autobuf_t *self, size_t len)
+size_t autobuf_write_advance(autobuf_t *self, size_t len)
 {
     self->offset_in += len;
 
@@ -129,7 +129,7 @@ size_t autobuf_peek(autobuf_t *self, void *ptr, size_t len)
 size_t autobuf_read(autobuf_t *self, void *ptr, size_t len)
 {
     int nread = autobuf_peek(self, ptr, len);
-    autobuf_read_head(self, nread);
+    autobuf_read_advance(self, nread);
     return nread;
 }
 
@@ -142,7 +142,7 @@ size_t autobuf_write(autobuf_t *self, const void *ptr, size_t len)
 
     size_t len_can_in = len <= autobuf_spare(self) ? len : autobuf_spare(self);
     memcpy(autobuf_write_pos(self), ptr, len_can_in);
-    autobuf_write_head(self, len_can_in);
+    autobuf_write_advance(self, len_can_in);
 
     return len_can_in;
 }

@@ -18,8 +18,8 @@ size_t ringbuf_size(ringbuf_t *self);
 size_t ringbuf_used(ringbuf_t *self);
 size_t ringbuf_spare(ringbuf_t *self);
 
-void ringbuf_in_head(ringbuf_t *self, size_t len);
-void ringbuf_out_head(ringbuf_t *self, size_t len);
+void ringbuf_write_advance(ringbuf_t *self, size_t len);
+void ringbuf_read_advance(ringbuf_t *self, size_t len);
 
 size_t ringbuf_write(ringbuf_t *self, const void *ptr, size_t len);
 size_t ringbuf_peek(ringbuf_t *self, void *ptr, size_t size);

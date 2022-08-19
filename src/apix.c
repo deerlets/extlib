@@ -52,7 +52,7 @@ int apicore_poll(struct apicore *core, int timeout)
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
             LOG_INFO("%s", autobuf_read_pos(pos_fd->rxbuf));
-            autobuf_read_head(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
+            autobuf_read_advance(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
             assert(pos_fd->sink->ops.send);
             pos_fd->sink->ops.send(pos_fd->sink, pos_fd->fd, "alive", 5);
         }

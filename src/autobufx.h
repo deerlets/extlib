@@ -17,8 +17,8 @@ int autobuf_realloc(autobuf_t *self, size_t len);
 
 char *autobuf_read_pos(autobuf_t *self);
 char *autobuf_write_pos(autobuf_t *self);
-size_t autobuf_read_head(autobuf_t *self, size_t len);
-size_t autobuf_write_head(autobuf_t *self, size_t len);
+size_t autobuf_read_advance(autobuf_t *self, size_t len);
+size_t autobuf_write_advance(autobuf_t *self, size_t len);
 
 size_t autobuf_size(autobuf_t *self);
 size_t autobuf_garbage(autobuf_t *self);

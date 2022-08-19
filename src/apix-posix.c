@@ -127,7 +127,7 @@ static int unix_poll(struct apisink *sink, int timeout)
             autobuf_tidy(pos->rxbuf);
             int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
                              autobuf_spare(pos->rxbuf), 0);
-            autobuf_write_head(pos->rxbuf, nread);
+            autobuf_write_advance(pos->rxbuf, nread);
         }
     }
 

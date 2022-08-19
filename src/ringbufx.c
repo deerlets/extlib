@@ -57,23 +57,23 @@ size_t ringbuf_spare(ringbuf_t *self)
     return self->size - ringbuf_used(self);
 }
 
-static char *ringbuf_in_pos(ringbuf_t *self)
+static char *ringbuf_write_pos(ringbuf_t *self)
 {
     return self->rawbuf + self->offset_in;
 }
 
-static char *ringbuf_out_pos(ringbuf_t *self)
+static char *ringbuf_read_pos(ringbuf_t *self)
 {
     return self->rawbuf + self->offset_out;
 }
 
-void ringbuf_in_head(ringbuf_t *self, size_t len)
+void ringbuf_write_advance(ringbuf_t *self, size_t len)
 {
     assert(ringbuf_spare(self) >= len);
     self->offset_in = (self->offset_in + len) % self->size;
 }
 
-void ringbuf_out_head(ringbuf_t *self, size_t len)
+void ringbuf_read_advance(ringbuf_t *self, size_t len)
 {
     assert(ringbuf_used(self) >= len);
     self->offset_out = (self->offset_out + len) % self->size;
@@ -88,10 +88,10 @@ size_t ringbuf_write(ringbuf_t *self, const void *ptr, size_t len)
         size_t spare_right = self->size - self->offset_in;
         size_t spare_left = self->offset_out;
         if (len <= spare_right) {
-            memcpy(ringbuf_in_pos(self), ptr, len);
+            memcpy(ringbuf_write_pos(self), ptr, len);
             cpy_cnt += len;
         } else {
-            memcpy(ringbuf_in_pos(self), ptr, spare_right);
+            memcpy(ringbuf_write_pos(self), ptr, spare_right);
             cpy_cnt += spare_right;
             if (len - spare_right <= spare_left) {
                 memcpy(self->rawbuf, ptr + cpy_cnt, len - spare_right);
@@ -104,15 +104,15 @@ size_t ringbuf_write(ringbuf_t *self, const void *ptr, size_t len)
     } else {
         size_t spare = self->offset_out - self->offset_in;
         if (len <= spare) {
-            memcpy(ringbuf_in_pos(self), ptr, len);
+            memcpy(ringbuf_write_pos(self), ptr, len);
             cpy_cnt += len;
         } else {
-            memcpy(ringbuf_in_pos(self), ptr, spare);
+            memcpy(ringbuf_write_pos(self), ptr, spare);
             cpy_cnt += spare;
         }
     }
 
-    ringbuf_in_head(self, cpy_cnt);
+    ringbuf_write_advance(self, cpy_cnt);
     return cpy_cnt;
 }
 
@@ -123,12 +123,12 @@ size_t ringbuf_peek(ringbuf_t *self, void *ptr, size_t size)
         cpy_cnt = size;
 
     if (self->offset_in >= self->offset_out) {
-        memcpy(ptr, ringbuf_out_pos(self), cpy_cnt);
+        memcpy(ptr, ringbuf_read_pos(self), cpy_cnt);
     }
     else {
         size_t cpy_right = self->size - self->offset_out;
         size_t cpy_left = cpy_cnt - cpy_right;
-        memcpy(ptr, ringbuf_out_pos(self), cpy_right);
+        memcpy(ptr, ringbuf_read_pos(self), cpy_right);
         memcpy(ptr + cpy_right, self->rawbuf, cpy_left);
     }
 
@@ -138,6 +138,6 @@ size_t ringbuf_peek(ringbuf_t *self, void *ptr, size_t size)
 size_t ringbuf_read(ringbuf_t *self, void *ptr, size_t size)
 {
     size_t cpy_cnt = ringbuf_peek(self, ptr, size);
-    ringbuf_out_head(self, cpy_cnt);
+    ringbuf_read_advance(self, cpy_cnt);
     return cpy_cnt;
 }
