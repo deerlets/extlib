@@ -34,7 +34,8 @@ static void *client_thread(void *args)
     }
 
     sleep(1);
-    rc = send(fd, "hello", 5, 0);
+    const char req[] = ">0,$,58:hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
+    rc = send(fd, req, sizeof(req), 0);
 
     char buf[256] = {0};
     rc = recv(fd, buf, sizeof(buf), 0);

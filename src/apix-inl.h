@@ -2,10 +2,12 @@
 #define __APIX_INL_H
 
 #include "apix.h"
-#include <listx.h>
-#include <autobufx.h>
+#include "listx.h"
+#include "autobufx.h"
 
 #define APISINK_NAME_SIZE 64
+#define API_HEADER_SIZE 256
+#define API_ERRMSG_SIZE 256
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,10 +21,38 @@ struct apinode {
 };
 
 /*
+ * apiservice
+ */
+
+struct api_request {
+    struct sinkfd *sinkfd;
+    char header[API_HEADER_SIZE];
+    char *content; // dynamic alloc, need free
+    struct list_head node;
+};
+
+struct api_response {
+    struct sinkfd *sinkfd;
+    char header[API_HEADER_SIZE];
+    char *content; // dynamic alloc, nedd free
+    struct list_head node;
+};
+
+struct api_service {
+    char header[API_HEADER_SIZE];
+    struct sinkfd *sinkfd;
+    struct list_head node;
+};
+
+/*
  * apicore
  */
 
 struct apicore {
+    struct list_head requests;
+    struct list_head responses;
+    struct list_head services;
+
     struct list_head sinkfds;
     struct list_head sinks;
 };

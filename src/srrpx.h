@@ -45,7 +45,7 @@ struct srrp_packet {
 };
 
 int /*nr bytes*/
-read_one_packet(const char *buf, size_t size, struct srrp_packet /*out*/ *pac);
+srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet /*out*/ *pac);
 
 #ifdef __cplusplus
 }

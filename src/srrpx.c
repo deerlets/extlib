@@ -7,13 +7,13 @@
 #define SERIAL_MAX_LEN 32
 #define LENGTH_MAX_LEN 32
 
-int read_one_packet(const char *buf, size_t size, struct srrp_packet *pac)
+int srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet *pac)
 {
     const char *leader = buf;
     const char *serial = buf + 1;
     const char *seat = strchr(buf, ',');
     if (seat) seat += 1;
-    const char *length = strchr(seat, ',');
+    const char *length = seat ? strchr(seat, ',') : NULL;
     if (length) length += 1;
     const char *delimiter = strchr(buf, SRRP_DELIMITER);
     const char *data_delimiter = strchr(buf, '{');

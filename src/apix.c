@@ -6,12 +6,52 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <listx.h>
-#include <logx.h>
+#include "listx.h"
+#include "logx.h"
+#include "srrpx.h"
+#include "stddefx.h"
+
+static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
+{
+    struct srrp_packet pac = {0};
+
+    while (autobuf_used(sinkfd->rxbuf)) {
+        int nr = srrp_read_one_packet(
+            autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf), &pac);
+        if (nr == -1) {
+            LOG_INFO("%s", autobuf_read_pos(sinkfd->rxbuf));
+            autobuf_read_advance(
+                sinkfd->rxbuf, strlen(autobuf_read_pos(sinkfd->rxbuf)) + 1);
+            continue;
+        }
+        autobuf_read_advance(sinkfd->rxbuf, nr);
+
+        if (pac.leader == SRRP_REQUEST_LEADER) {
+            struct api_request *req = malloc(sizeof(*req));
+            memset(req, 0, sizeof(*req));
+            req->sinkfd = sinkfd;
+            strcpy(req->header, pac.header);
+            req->content = strdup(pac.data);
+            INIT_LIST_HEAD(&req->node);
+            list_add(&req->node, &core->requests);
+        } else if (pac.leader == SRRP_RESPONSE_LEADER) {
+            struct api_response *resp = malloc(sizeof(*resp));
+            memset(resp, 0, sizeof(*resp));
+            resp->sinkfd = sinkfd;
+            strcpy(resp->header, pac.header);
+            resp->content = strdup(pac.data);
+            INIT_LIST_HEAD(&resp->node);
+            list_add(&resp->node, &core->requests);
+        }
+    }
+}
 
 struct apicore *apicore_new()
 {
     struct apicore *core = malloc(sizeof(struct apicore));
+    INIT_LIST_HEAD(&core->requests);
+    INIT_LIST_HEAD(&core->responses);
+    INIT_LIST_HEAD(&core->services);
     INIT_LIST_HEAD(&core->sinkfds);
     INIT_LIST_HEAD(&core->sinks);
     return core;
@@ -19,16 +59,44 @@ struct apicore *apicore_new()
 
 void apicore_destroy(struct apicore *core)
 {
-    struct sinkfd *pos, *n;
-    list_for_each_entry_safe(pos, n, &core->sinkfds, node_core) {
-        list_del_init(&pos->node_core);
-        free(pos);
+    {
+        struct api_request *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->requests, node) {
+            list_del_init(&pos->node);
+            free(pos);
+        }
     }
 
-    struct apisink *pos_sink, *n_sink;
-    list_for_each_entry_safe(pos_sink, n_sink, &core->sinks, node) {
-        apicore_del_sink(core, pos_sink);
-        apisink_fini(pos_sink);
+    {
+        struct api_response *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->responses, node) {
+            list_del_init(&pos->node);
+            free(pos);
+        }
+    }
+
+    {
+        struct api_service *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->services, node) {
+            list_del_init(&pos->node);
+            free(pos);
+        }
+    }
+
+    {
+        struct sinkfd *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->sinkfds, node_core) {
+            list_del_init(&pos->node_core);
+            free(pos);
+        }
+    }
+
+    {
+        struct apisink *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->sinks, node) {
+            apicore_del_sink(core, pos);
+            apisink_fini(pos);
+        }
     }
 
     free(core);
@@ -51,11 +119,22 @@ int apicore_poll(struct apicore *core, int timeout)
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
-            LOG_INFO("%s", autobuf_read_pos(pos_fd->rxbuf));
-            autobuf_read_advance(pos_fd->rxbuf, autobuf_used(pos_fd->rxbuf));
+            parse_packet(core, pos_fd);
             assert(pos_fd->sink->ops.send);
             pos_fd->sink->ops.send(pos_fd->sink, pos_fd->fd, "alive", 5);
         }
+    }
+
+    struct api_request *pos_req;
+    list_for_each_entry(pos_req, &core->requests, node) {
+        // TODO
+        LOG_INFO("%s%s", pos_req->header, pos_req->content);
+    }
+
+    struct api_response *pos_resp;
+    list_for_each_entry(pos_resp, &core->responses, node) {
+        // TODO
+        LOG_INFO("%s%s", pos_resp->header, pos_resp->content);
     }
 
     return 0;
@@ -118,6 +197,7 @@ int apicore_add_sink(struct apicore *core, struct apisink *sink)
 
 void apicore_del_sink(struct apicore *core, struct apisink *sink)
 {
+    UNUSED(core);
     list_del_init(&sink->node);
     sink->core = NULL;
 }

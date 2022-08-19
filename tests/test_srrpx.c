@@ -15,7 +15,9 @@ static void test_srrp(void **status)
     int nr = 0;
 
     const char req[] = ">0,$,58:hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
-    nr = read_one_packet(req, sizeof(req), &pac);
+    const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
+
+    nr = srrp_read_one_packet(req, sizeof(req), &pac);
     assert_true(nr == sizeof(req));
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
@@ -24,8 +26,7 @@ static void test_srrp(void **status)
     free((void *)pac.header);
     free((void *)pac.data);
 
-    const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
-    nr = read_one_packet(resp, sizeof(resp), &pac);
+    nr = srrp_read_one_packet(resp, sizeof(resp), &pac);
     assert_true(nr == sizeof(resp));
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
@@ -40,7 +41,7 @@ static void test_srrp(void **status)
     memcpy(buf, req, strlen(req));
     memcpy(buf + strlen(req) + 1, resp, strlen(resp));
 
-    nr = read_one_packet(buf, buf_len, &pac);
+    nr = srrp_read_one_packet(buf, buf_len, &pac);
     assert_true(nr == strlen(req) + 1);
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
@@ -49,7 +50,7 @@ static void test_srrp(void **status)
     free((void *)pac.header);
     free((void *)pac.data);
 
-    nr = read_one_packet(buf + nr, buf_len - nr, &pac);
+    nr = srrp_read_one_packet(buf + nr, buf_len - nr, &pac);
     assert_true(nr == strlen(resp) + 1);
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
