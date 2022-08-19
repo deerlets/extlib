@@ -20,6 +20,10 @@ add_executable(test-autobufx test_autobufx.c)
 target_link_libraries(test-autobufx cmocka cx)
 add_test(test-autobufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-autobufx)
 
+add_executable(test-srrpx test_srrpx.c)
+target_link_libraries(test-srrpx cmocka cx pthread)
+add_test(test-srrpx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-srrpx)
+
 add_executable(test-apix test_apix.c)
 target_link_libraries(test-apix cmocka cx pthread)
 add_test(test-apix ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-apix)
