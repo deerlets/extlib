@@ -57,6 +57,22 @@ struct api_service {
     struct list_head node;
 };
 
+#define api_request_delete(req) \
+{ \
+    list_del(&req->node); \
+    free(req->raw); \
+    free(req->content); \
+    free(req); \
+}
+
+#define api_response_delete(resp) \
+{ \
+    list_del(&resp->node); \
+    free(resp->raw); \
+    free(resp->content); \
+    free(resp); \
+}
+
 /*
  * apicore
  */

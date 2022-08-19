@@ -190,16 +190,10 @@ int apicore_poll(struct apicore *core, int timeout)
         LOG_INFO("poll request: %s%s", pos_req->header, pos_req->content);
         if (strcmp(pos_req->header, APICORE_SERVICE_ADD) == 0) {
             service_add_handler(core, pos_req->content, pos_req->sinkfd);
-            list_del(&pos_req->node);
-            free(pos_req->raw);
-            free(pos_req->content);
-            free(pos_req);
+            api_request_delete(pos_req);
         } else if (strcmp(pos_req->header, APICORE_SERVICE_DEL) == 0) {
             service_del_handler(core, pos_req->content, pos_req->sinkfd);
-            list_del(&pos_req->node);
-            free(pos_req->raw);
-            free(pos_req->content);
-            free(pos_req);
+            api_request_delete(pos_req);
         } else {
             struct api_service *serv = find_apiservice(
                 &core->services, pos_req->header, strlen(pos_req->header));
@@ -227,17 +221,11 @@ int apicore_poll(struct apicore *core, int timeout)
                 pos_req->sinkfd->sink->ops.send(
                     pos_req->sinkfd->sink, pos_req->sinkfd->fd,
                     pos_resp->raw, pos_resp->raw_len);
-                list_del(&pos_req->node);
-                free(pos_req->raw);
-                free(pos_req->content);
-                free(pos_req);
+                api_request_delete(pos_req);
                 break;
             }
         }
-        list_del(&pos_resp->node);
-        free(pos_resp->raw);
-        free(pos_resp->content);
-        free(pos_resp);
+        api_response_delete(pos_resp);
     }
 
     return 0;
