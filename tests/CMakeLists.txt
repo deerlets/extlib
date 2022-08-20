@@ -24,6 +24,10 @@ add_executable(test-srrpx test_srrpx.c)
 target_link_libraries(test-srrpx cmocka cx pthread)
 add_test(test-srrpx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-srrpx)
 
+add_executable(test-jsonx test_jsonx.c)
+target_link_libraries(test-jsonx cmocka cx pthread)
+add_test(test-jsonx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-jsonx)
+
 add_executable(test-apix test_apix.c)
 target_link_libraries(test-apix cmocka cx pthread)
 add_test(test-apix ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-apix)
