@@ -64,18 +64,24 @@ static void *server_thread(void *args)
         return NULL;
     }
 
-    sleep(1);
-    const char req[] = ">0,$,44:/core/service/add{header:'/hello/x'}";
-    rc = send(fd, req, sizeof(req), 0);
-
     char buf[256] = {0};
+    const char req_add[] = ">0,$,47:/apicore/service/add{header:'/hello/x'}";
+    const char req_del[] = ">0,$,47:/apicore/service/del{header:'/hello/x'}";
+    const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
+
+    rc = send(fd, req_add, sizeof(req_add), 0);
+    memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv response: %s", buf);
 
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
-    const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
     rc = send(fd, resp, sizeof(resp), 0);
+
+    rc = send(fd, req_del, sizeof(req_del), 0);
+    memset(buf, 0, sizeof(buf));
+    rc = recv(fd, buf, sizeof(buf), 0);
+    LOG_INFO("server recv response: %s", buf);
 
     close(fd);
     server_finished = 1;

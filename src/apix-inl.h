@@ -10,8 +10,8 @@
 #define API_HEADER_SIZE 256
 #define API_ERRMSG_SIZE 256
 
-#define APICORE_SERVICE_ADD "/core/service/add"
-#define APICORE_SERVICE_DEL "/core/service/del"
+#define APICORE_SERVICE_ADD "/apicore/service/add"
+#define APICORE_SERVICE_DEL "/apicore/service/del"
 
 #define API_REQUEST_ST_NONE 0
 #define API_REQUEST_ST_WAIT_RESPONSE 1
@@ -30,7 +30,9 @@ struct apinode {
 };
 
 /*
- * apiservice
+ * api_request
+ * api_response
+ * api_service
  */
 
 struct api_request {

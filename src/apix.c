@@ -1,6 +1,4 @@
-#include "apix.h"
 #include "apix-inl.h"
-#include "autobufx.h"
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -9,6 +7,7 @@
 #include <time.h>
 #include "stddefx.h"
 #include "listx.h"
+#include "autobufx.h"
 #include "logx.h"
 #include "srrpx.h"
 #include "jsonx.h"
@@ -248,7 +247,7 @@ int apicore_poll(struct apicore *core, int timeout)
     return 0;
 }
 
-int apicore_open(struct apicore *core, const char *name, const void *addr)
+int apicore_open(struct apicore *core, const char *name, const char *addr)
 {
     struct apisink *pos;
     list_for_each_entry(pos, &core->sinks, node) {
