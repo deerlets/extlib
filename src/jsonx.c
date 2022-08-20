@@ -113,6 +113,64 @@ static int json_walk(struct json_object *jo, const char *str, const char *path)
     }
 }
 
+int __json_get_string(struct json_object *jo, char *value, size_t size)
+{
+    assert(value != NULL);
+    const char *str = jo->raw;
+
+    for (int i = jo->walk_idx - jo->raw; i < strlen(jo->raw); i++) {
+        if (str[i] == ' ' || str[i] == ':')
+            continue;
+        if (!isprint(str[i])) {
+            jo->errno = JSON_ERR_TYPE;
+            return -1;
+        }
+        char *value_end = NULL;
+        int j = i;
+        for (; j < strlen(str); j++) {
+            if (value_end == NULL
+                && isprint(str[j])
+                && str[j] != ' '
+                && str[j] != ','
+                && str[j] != '}')
+                continue;
+            if (str[j] == ' ') {
+                if (value_end == NULL)
+                    value_end = (char *)(str + j);
+                continue;
+            }
+            if (str[j] == ',' || str[j] == '}') {
+                if (value_end == NULL)
+                    value_end = (char *)(str + j);
+                break;
+            } else {
+                jo->errno = JSON_ERR_TYPE;
+                return -1;
+            }
+        }
+        if (j == strlen(str)) {
+            jo->errno = JSON_ERR_BRACE;
+            return -1;
+        }
+        assert(value_end != NULL);
+        size_t cpy_cnt = value_end - str - i;
+        if (cpy_cnt > size - 1) cpy_cnt = size - 1;
+        memcpy(value, str + i, cpy_cnt);
+        value[cpy_cnt] = 0;
+        return 0;
+    }
+
+    jo->errno = JSON_ERR_TYPE;
+    return -1;
+}
+
+int json_get_string(struct json_object *jo, const char *path, char *value, size_t size)
+{
+    int rc = json_walk(jo, jo->raw, path);
+    if (rc != 0) return rc;
+    return __json_get_string(jo, value, size);
+}
+
 int __json_get_int(struct json_object *jo, int *value)
 {
     assert(value != NULL);
@@ -149,7 +207,7 @@ int __json_get_int(struct json_object *jo, int *value)
             return -1;
         }
         assert(value_end != NULL);
-        char tmp[16] = {0};
+        char tmp[32] = {0};
         memcpy(tmp, str + i, value_end - str - i);
         *value = atoi(tmp);
         return 0;

@@ -8,11 +8,17 @@
 static void test_json(void **status)
 {
     struct json_object *jo = json_object_new(
-        "{header: '/hello/x', test: {len: 12}}");
+        "{header: '/hello/x', test: {len: 12, name: yon}}");
 
-    int value = 0;
-    assert_true(json_get_int(jo, "/test/len", &value) == 0);
-    assert_true(value == 12);
+    int value_int = 0;
+    assert_true(json_get_int(jo, "/test/len", &value_int) == 0);
+    assert_true(value_int == 12);
+
+    char value_str[256];
+    assert_true(json_get_string(jo, "/header", value_str, sizeof(value_str)) == 0);
+    assert_string_equal(value_str, "'/hello/x'");
+    assert_true(json_get_string(jo, "/test/name", value_str, sizeof(value_str)) == 0);
+    assert_string_equal(value_str, "yon");
 
     json_object_delete(jo);
 }
