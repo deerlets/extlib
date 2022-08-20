@@ -64,7 +64,7 @@ static int unix_open(struct apisink *sink, const char *addrname)
 
 static int unix_close(struct apisink *sink, int fd)
 {
-    struct sinkfd *sinkfd = to_sinkfd(&sink->sinkfds, fd);
+    struct sinkfd *sinkfd = find_sinkfd_in_apisink(sink, fd);
     if (sinkfd == NULL)
         return -1;
     close(sinkfd->fd);

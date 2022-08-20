@@ -139,7 +139,8 @@ struct sinkfd {
 struct sinkfd *sinkfd_new();
 void sinkfd_destroy();
 
-struct sinkfd *to_sinkfd(struct list_head *sinkfds, int fd);
+struct sinkfd *find_sinkfd_in_apicore(struct apicore *core, int fd);
+struct sinkfd *find_sinkfd_in_apisink(struct apisink *sink, int fd);
 
 #ifdef __cplusplus
 }

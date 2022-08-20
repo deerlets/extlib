@@ -261,7 +261,7 @@ int apicore_open(struct apicore *core, const char *name, const char *addr)
 
 int apicore_close(struct apicore *core, int fd)
 {
-    struct sinkfd *sinkfd = to_sinkfd(&core->sinkfds, fd);
+    struct sinkfd *sinkfd = find_sinkfd_in_apicore(core, fd);
     if (sinkfd == NULL)
         return -1;
     if (sinkfd->sink && sinkfd->sink->ops.close)
@@ -334,10 +334,20 @@ void sinkfd_destroy(struct sinkfd *sinkfd)
     free(sinkfd);
 }
 
-struct sinkfd *to_sinkfd(struct list_head *sinkfds, int fd)
+struct sinkfd *find_sinkfd_in_apicore(struct apicore *core, int fd)
 {
     struct sinkfd *pos, *n;
-    list_for_each_entry_safe(pos, n, sinkfds, node_core) {
+    list_for_each_entry_safe(pos, n, &core->sinkfds, node_core) {
+        if (pos->fd == fd)
+            return pos;
+    }
+    return NULL;
+}
+
+struct sinkfd *find_sinkfd_in_apisink(struct apisink *sink, int fd)
+{
+    struct sinkfd *pos, *n;
+    list_for_each_entry_safe(pos, n, &sink->sinkfds, node_sink) {
         if (pos->fd == fd)
             return pos;
     }
