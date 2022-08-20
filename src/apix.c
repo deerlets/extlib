@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "crc16.h"
 #include "stddefx.h"
 #include "listx.h"
 #include "autobufx.h"
@@ -36,6 +37,11 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             req->ts_create = time(0);
             req->ts_send = 0;
             req->sinkfd = sinkfd;
+            char *tmp = calloc(1, strlen(pac.header) + strlen(pac.data) + 1);
+            memcpy(tmp, pac.header, strlen(pac.header));
+            memcpy(tmp + strlen(pac.header), pac.data, strlen(pac.data));
+            req->crc16 = crc16(tmp, strlen(tmp));
+            free(tmp);
             strcpy(req->header, pac.header);
             req->content = strdup(pac.data);
             INIT_LIST_HEAD(&req->node);
@@ -47,6 +53,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             memcpy(resp->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
             resp->raw_len = nr;
             resp->sinkfd = sinkfd;
+            resp->crc16_req = pac.crc16;
             strcpy(resp->header, pac.header);
             resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
@@ -202,7 +209,7 @@ int apicore_poll(struct apicore *core, int timeout)
             continue;
         }
 
-        LOG_INFO("poll request: %s%s", pos_req->header, pos_req->content);
+        LOG_INFO("poll >: %s%s", pos_req->header, pos_req->content);
         if (strcmp(pos_req->header, APICORE_SERVICE_ADD) == 0) {
             service_add_handler(core, pos_req->content, pos_req->sinkfd);
             api_request_delete(pos_req);
@@ -230,10 +237,11 @@ int apicore_poll(struct apicore *core, int timeout)
 
     struct api_response *pos_resp, *n_resp;
     list_for_each_entry_safe(pos_resp, n_resp, &core->responses, node) {
-        LOG_INFO("poll response: %s%s", pos_resp->header, pos_resp->content);
+        LOG_INFO("poll <: %s%s", pos_resp->header, pos_resp->content);
         struct api_request *pos_req, *n_req;
         list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-            if (strcmp(pos_req->header, pos_resp->header + 4) == 0) {
+            if (pos_req->crc16 == pos_resp->crc16_req &&
+                strcmp(pos_req->header, pos_resp->header) == 0) {
                 pos_req->sinkfd->sink->ops.send(
                     pos_req->sinkfd->sink, pos_req->sinkfd->fd,
                     pos_resp->raw, pos_resp->raw_len);

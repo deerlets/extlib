@@ -37,6 +37,7 @@ struct api_request {
     uint64_t ts_send;
 
     struct sinkfd *sinkfd;
+    uint16_t crc16;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, need free
     struct list_head node;
@@ -47,6 +48,7 @@ struct api_response {
     size_t raw_len;
 
     struct sinkfd *sinkfd;
+    uint16_t crc16_req;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, need free
     struct list_head node;

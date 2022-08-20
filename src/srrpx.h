@@ -2,25 +2,22 @@
 #define __SRRPX_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*
- * Request: >[seqno],[^|0|$],[lenth]:[header]{data}<crc8>\0
- *   >0,$,0061:/hello/x{name:'yon',age:'18',equip:['hat','shoes']}<crc8>\0
- *   >1,^,0013:/he<crc8>\0
- *   >2,0,0015:llo/y<crc8>\0
- *   >3,$,0052:{name:'myu',age:'12',equip:['gun','bomb']}<crc8>\0
+ * Request: >[seqno],[^|0|$],[lenth]:[header]{data}\0<crc16>\0
+ *   >0,$,0061:/hello/x{name:'yon',age:'18',equip:['hat','shoes']}\0<crc16>\0
+ *   >1,^,0013:/he\0<crc16>\0
+ *   >2,0,0015:llo/y\0<crc16>\0
+ *   >3,$,0052:{name:'myu',age:'12',equip:['gun','bomb']}\0<crc16>\0
  *
- * Response: <[seqno],[^|0|$],[lenth]:[request-crc8]{data}<crc8>\0
- *   <0,$,0062:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}<crc8>\0
- *   <1,$,0061:0xcc/hello/y{err:1,errmsg:'fail',data:{msg:'hell'}}<crc8>\0
- *
- * crc8:
- *   hello/x{name:'yon',age:'18',equip:['hat','shoes']} => crc8 is 0x13
- *   hello/y{name:'myu',age:'12',equip:['gun','bomb']} => crc8 is 0xcc
+ * Response: <[seqno],[^|0|$],[lenth]:[crc16_req][header]{data}\0<crc16>\0
+ *   <0,$,0062:<crc16>/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}\0<crc16>\0
+ *   <1,$,0061:<crc16>/hello/y{err:1,errmsg:'fail',data:{msg:'hell'}}\0<crc16>\0
  */
 
 #define SRRP_REQUEST_LEADER '>'
@@ -41,16 +38,18 @@ struct srrp_packet {
     int serial;
     char seat;
     size_t len;
+    uint16_t crc16; // crc16_req when leader is '<'
     char *header;
     char *data;
 };
 
-int /*nr*/
-srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet /*out*/ *pac);
-int /*nr*/
-srrp_write_request(char *buf, size_t size, const char *header, const char *data);
-int /*nr*/
-srrp_write_response(char *buf, size_t size, const char *header, const char *data);
+int /*nr*/ srrp_read_one_packet(
+    const char *buf, size_t size, struct srrp_packet /*out*/ *pac);
+int /*nr*/ srrp_write_request(
+    char *buf, size_t size, const char *header, const char *data);
+int /*nr*/ srrp_write_response(
+    char *buf, size_t size, uint16_t crc16_req,
+    const char *header, const char *data);
 
 #ifdef __cplusplus
 }

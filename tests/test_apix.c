@@ -11,6 +11,7 @@
 #include "apix.h"
 #include "apix-posix.h"
 #include "srrpx.h"
+#include "crc16.h"
 #include "logx.h"
 
 #define UNIX_ADDR "test_apisink_unix"
@@ -81,9 +82,11 @@ static void *server_thread(void *args)
         "{header:'/hello/x'}");
     srrp_write_request(
         req_del, sizeof(req_del), "/apicore/service/del",
-        "{'header:/hello/x'}");
+        "{header:'/hello/x'}");
+    const char *tmp = "/hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
+    uint16_t crc = crc16(tmp, strlen(tmp));
     srrp_write_response(
-        resp, sizeof(resp), "0x13/hello/x",
+        resp, sizeof(resp), crc, "/hello/x",
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
 
     rc = send(fd, req_add, strlen(req_add) + 1, 0);
