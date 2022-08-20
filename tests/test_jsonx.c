@@ -10,7 +10,9 @@ static void test_json(void **status)
     struct json_object *jo = json_object_new(
         "{header: '/hello/x', test: {len: 12}}");
 
-    assert_true(json_get_int(jo, "/test/len") == 12);
+    int value = 0;
+    assert_true(json_get_int(jo, "/test/len", &value) == 0);
+    assert_true(value == 12);
 
     json_object_delete(jo);
 }

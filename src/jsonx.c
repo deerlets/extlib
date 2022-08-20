@@ -11,9 +11,15 @@ enum json_errno {
     JSON_ERR_TYPE,
 };
 
+enum json_type {
+    JSON_TYPE_INT = 0,
+    JSON_TYPE_BOOL,
+};
+
 struct json_object {
-    char *raw;
     int errno;
+    char *raw;
+    const char *walk_idx;
 };
 
 struct json_object *json_object_new(const char *str)
@@ -21,6 +27,7 @@ struct json_object *json_object_new(const char *str)
     struct json_object *jo = malloc(sizeof(*jo));
     memset(jo, 0, sizeof(*jo));
     jo->raw = strdup(str);
+    jo->walk_idx = jo->raw;
     return jo;
 }
 
@@ -31,8 +38,7 @@ void json_object_delete(struct json_object *jo)
     free(jo);
 }
 
-static int
-__json_get_int(struct json_object *jo, const char *str, const char *path)
+static int json_walk(struct json_object *jo, const char *str, const char *path)
 {
     assert(path[0] == '/');
     assert(path[1] != 0);
@@ -42,11 +48,9 @@ __json_get_int(struct json_object *jo, const char *str, const char *path)
     // recursive fininshed
     if (path_next == NULL) {
         const char *key = path + 1;
-        int find_key = 0;
         int brace_cnt = 0;
 
         for (int i = 0; i < strlen(str); i++) {
-            if (find_key == 0) {
                 if (str[i] == '{') {
                     brace_cnt++;
                     continue;
@@ -58,51 +62,12 @@ __json_get_int(struct json_object *jo, const char *str, const char *path)
                 if (brace_cnt == 1) {
                     if (key[0] == str[i] &&
                         memcmp(key, str + i, strlen(key)) == 0) {
-                        find_key = 1;
-                        i += strlen(key) - 1;
-                        continue;
+                        jo->walk_idx = str + i + strlen(key);
+                        return 0;
                     }
                 }
-            } else {
-                if (str[i] == ' ' || str[i] == ':')
-                    continue;
-                if (!isdigit(str[i])) {
-                    jo->errno = JSON_ERR_TYPE;
-                    return -1;
-                }
-                char *value_end = NULL;
-                int j = i;
-                for (; j < strlen(str); j++) {
-                    if (value_end == NULL && isdigit(str[j]))
-                        continue;
-                    if (str[j] == ' ') {
-                        if (value_end == NULL)
-                            value_end = (char *)(str + j);
-                        continue;
-                    }
-                    if (str[j] == ',' || str[j] == '}') {
-                        if (value_end == NULL)
-                            value_end = (char *)(str + j);
-                        break;
-                    } else {
-                        jo->errno = JSON_ERR_TYPE;
-                        return -1;
-                    }
-                }
-                if (j == strlen(str)) {
-                    jo->errno = JSON_ERR_BRACE;
-                    return -1;
-                }
-                assert(value_end != NULL);
-                char tmp[16] = {0};
-                memcpy(tmp, str + i, value_end - str - i);
-                return atoi(tmp);
-            }
         }
-        if (find_key == 0)
-            jo->errno = JSON_ERR_KEY;
-        else
-            jo->errno = JSON_ERR_TYPE;
+        jo->errno = JSON_ERR_KEY;
         return -1;
     } else {
         char *key = malloc(path_next - path);
@@ -138,20 +103,65 @@ __json_get_int(struct json_object *jo, const char *str, const char *path)
                     return -1;
                 }
                 free(key);
-                return __json_get_int(jo, str + i, path_next);
+                return json_walk(jo, str + i, path_next);
             }
         }
 
         free(key);
-        if (find_key == 0)
-            jo->errno = JSON_ERR_KEY;
-        else
-            jo->errno = JSON_ERR_TYPE;
+        jo->errno = JSON_ERR_KEY;
         return -1;
     }
 }
 
-int json_get_int(struct json_object *jo, const char *path)
+int __json_get_int(struct json_object *jo, int *value)
 {
-    return __json_get_int(jo, jo->raw, path);
+    assert(value != NULL);
+    const char *str = jo->raw;
+
+    for (int i = jo->walk_idx - jo->raw; i < strlen(jo->raw); i++) {
+        if (str[i] == ' ' || str[i] == ':')
+            continue;
+        if (!isdigit(str[i])) {
+            jo->errno = JSON_ERR_TYPE;
+            return -1;
+        }
+        char *value_end = NULL;
+        int j = i;
+        for (; j < strlen(str); j++) {
+            if (value_end == NULL && isdigit(str[j]))
+                continue;
+            if (str[j] == ' ') {
+                if (value_end == NULL)
+                    value_end = (char *)(str + j);
+                continue;
+            }
+            if (str[j] == ',' || str[j] == '}') {
+                if (value_end == NULL)
+                    value_end = (char *)(str + j);
+                break;
+            } else {
+                jo->errno = JSON_ERR_TYPE;
+                return -1;
+            }
+        }
+        if (j == strlen(str)) {
+            jo->errno = JSON_ERR_BRACE;
+            return -1;
+        }
+        assert(value_end != NULL);
+        char tmp[16] = {0};
+        memcpy(tmp, str + i, value_end - str - i);
+        *value = atoi(tmp);
+        return 0;
+    }
+
+    jo->errno = JSON_ERR_TYPE;
+    return -1;
+}
+
+int json_get_int(struct json_object *jo, const char *path, int *value)
+{
+    int rc = json_walk(jo, jo->raw, path);
+    if (rc != 0) return rc;
+    return __json_get_int(jo, value);
 }
