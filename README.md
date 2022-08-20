@@ -6,12 +6,21 @@ Extension for libc
 
 ## Supported platforms
 
-- Linux
+- Windows
 - MacOS
+- Linux
 - arm-none-eabi-gcc with newlib
 
 ## Build
 ```
 mkdir build && cd build
-cmake .. && make
+cmake ..
+make && make install
+```
+
+## Build Test
+```
+mkdir build && cd build
+cmake .. -DBUILD_DEBUG=on -DBUILD_TESTS=on
+make && make test
 ```
