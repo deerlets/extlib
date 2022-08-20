@@ -1,6 +1,7 @@
 #ifndef __APIX_INL_H
 #define __APIX_INL_H
 
+#include <stdint.h>
 #include "apix.h"
 #include "listx.h"
 #include "autobufx.h"
@@ -14,6 +15,8 @@
 
 #define API_REQUEST_ST_NONE 0
 #define API_REQUEST_ST_WAIT_RESPONSE 1
+
+#define API_REQUEST_TIMEOUT 3000 /*ms*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,6 +37,8 @@ struct api_request {
     void *raw;
     size_t raw_len;
     int state;
+    uint64_t ts_create;
+    uint64_t ts_send;
 
     struct sinkfd *sinkfd;
     char header[API_HEADER_SIZE];

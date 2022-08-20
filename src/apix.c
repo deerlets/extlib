@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include "stddefx.h"
 #include "listx.h"
 #include "logx.h"
@@ -33,6 +34,8 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             memcpy(req->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
             req->raw_len = nr;
             req->state = API_REQUEST_ST_NONE;
+            req->ts_create = time(0);
+            req->ts_send = 0;
             req->sinkfd = sinkfd;
             strcpy(req->header, pac.header);
             req->content = strdup(pac.data);
@@ -189,8 +192,16 @@ int apicore_poll(struct apicore *core, int timeout)
 
     struct api_request *pos_req, *n_req;
     list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-        if (pos_req->state == API_REQUEST_ST_WAIT_RESPONSE)
+        if (pos_req->state == API_REQUEST_ST_WAIT_RESPONSE) {
+            if (time(0) < pos_req->ts_send + API_REQUEST_TIMEOUT / 1000)
+                continue;
+            pos_req->sinkfd->sink->ops.send(
+                pos_req->sinkfd->sink, pos_req->sinkfd->fd,
+                "request timeout", 15);
+            LOG_DEBUG("request timeout: %s", pos_req->raw);
+            api_request_delete(pos_req);
             continue;
+        }
 
         LOG_INFO("poll request: %s%s", pos_req->header, pos_req->content);
         if (strcmp(pos_req->header, APICORE_SERVICE_ADD) == 0) {
@@ -208,6 +219,7 @@ int apicore_poll(struct apicore *core, int timeout)
                     serv->sinkfd->sink, serv->sinkfd->fd,
                     pos_req->raw, pos_req->raw_len);
                 pos_req->state = API_REQUEST_ST_WAIT_RESPONSE;
+                pos_req->ts_send = time(0);
             } else {
                 pos_req->sinkfd->sink->ops.send(
                     pos_req->sinkfd->sink, pos_req->sinkfd->fd,
