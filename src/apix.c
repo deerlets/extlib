@@ -6,10 +6,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "stddefx.h"
 #include "listx.h"
 #include "logx.h"
 #include "srrpx.h"
-#include "stddefx.h"
+#include "jsonx.h"
 
 static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 {
@@ -71,12 +72,19 @@ find_apiservice(struct list_head *services, const void *header, size_t len)
 static void service_add_handler(
     struct apicore *core, const char *content, struct sinkfd *sinkfd)
 {
-    char *header_start = strstr(content, "header:'") + 8;
-    char *header_end = strstr(content, "'}");
+    struct json_object *jo = json_object_new(content);
+    char header[256] = {0};
+    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    json_object_delete(jo);
+    if (rc != 0) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        return;
+    }
 
     struct api_service *service = malloc(sizeof(*service));
     memset(service, 0, sizeof(*service));
-    memcpy(service->header, header_start, header_end - header_start);
+    strcpy(service->header, header);
     service->sinkfd = sinkfd;
     INIT_LIST_HEAD(&service->node);
     list_add(&service->node, &core->services);
@@ -88,11 +96,18 @@ static void service_add_handler(
 static void service_del_handler(
     struct apicore *core, const char *content, struct sinkfd *sinkfd)
 {
-    char *header_start = strstr(content, "header:'") + 8;
-    char *header_end = strstr(content, "'}");
+    struct json_object *jo = json_object_new(content);
+    char header[256] = {0};
+    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    json_object_delete(jo);
+    if (rc != 0) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        return;
+    }
 
     struct api_service *serv = find_apiservice(
-        &core->services, header_start, header_end - header_start);
+        &core->services, header, strlen(header));
 
     if (serv == NULL || serv->sinkfd != sinkfd) {
         assert(sinkfd->sink->ops.send);
