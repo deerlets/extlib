@@ -4,13 +4,6 @@
 #include <string.h>
 #include <ctype.h>
 
-enum json_errno {
-    JSON_ERR_OK = 0,
-    JSON_ERR_BRACE,
-    JSON_ERR_KEY,
-    JSON_ERR_TYPE,
-};
-
 struct json_object {
     int errno;
     char *raw;
