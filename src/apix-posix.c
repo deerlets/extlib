@@ -23,7 +23,7 @@ static struct unix_sink {
     int nfds;
 } __unix_sink;
 
-static int unix_open(struct apisink *sink, const void *addrname)
+static int unix_open(struct apisink *sink, const char *addrname)
 {
     int fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd == -1)
@@ -50,6 +50,7 @@ static int unix_open(struct apisink *sink, const void *addrname)
     struct sinkfd *sinkfd = sinkfd_new();
     sinkfd->fd = fd;
     sinkfd->listen = 1;
+    strncpy(sinkfd->addr, addrname, sizeof(sinkfd->addr));
     sinkfd->sink = sink;
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
@@ -67,6 +68,7 @@ static int unix_close(struct apisink *sink, int fd)
     if (sinkfd == NULL)
         return -1;
     close(sinkfd->fd);
+    unlink(sinkfd->addr);
     sinkfd_destroy(sinkfd);
     return 0;
 }
@@ -137,8 +139,8 @@ static int unix_poll(struct apisink *sink, int timeout)
 }
 
 static apisink_ops_t unix_ops = {
-    .open =unix_open,
-    .close =unix_close,
+    .open = unix_open,
+    .close = unix_close,
     .send = unix_send,
     .recv = unix_recv,
     .poll = unix_poll,

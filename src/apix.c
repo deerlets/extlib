@@ -312,6 +312,7 @@ void apicore_del_sink(struct apicore *core, struct apisink *sink)
 struct sinkfd *sinkfd_new()
 {
     struct sinkfd *sinkfd = malloc(sizeof(struct sinkfd));
+    memset(sinkfd, 0, sizeof(*sinkfd));
     sinkfd->fd = 0;
     sinkfd->listen = 0;
     sinkfd->txbuf = autobuf_new(0);

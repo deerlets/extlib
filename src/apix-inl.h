@@ -7,6 +7,7 @@
 #include "autobufx.h"
 
 #define APISINK_NAME_SIZE 64
+#define SINKFD_ADDR_SIZE 64
 #define API_HEADER_SIZE 256
 #define API_ERRMSG_SIZE 256
 
@@ -88,7 +89,6 @@ struct apicore {
     struct list_head requests;
     struct list_head responses;
     struct list_head services;
-
     struct list_head sinkfds;
     struct list_head sinks;
 };
@@ -100,7 +100,7 @@ struct apicore {
 struct apisink;
 
 typedef struct apisink_ops {
-    int (*open)(struct apisink *sink, const void *addr);
+    int (*open)(struct apisink *sink, const char *addr);
     int (*close)(struct apisink *sink, int fd);
     int (*send)(struct apisink *sink, int fd, const void *buf, size_t len);
     int (*recv)(struct apisink *sink, int fd, void *buf, size_t size);
@@ -128,6 +128,7 @@ void apicore_del_sink(struct apicore *core, struct apisink *sink);
 struct sinkfd {
     int fd;
     int listen;
+    char addr[SINKFD_ADDR_SIZE];
     autobuf_t *txbuf;
     autobuf_t *rxbuf;
     struct apisink *sink;
