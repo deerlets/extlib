@@ -24,13 +24,6 @@ extern "C" {
 #endif
 
 /*
- * apinode
- */
-
-struct apinode {
-};
-
-/*
  * api_request
  * api_response
  * api_service
@@ -55,7 +48,7 @@ struct api_response {
 
     struct sinkfd *sinkfd;
     char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, nedd free
+    char *content; // dynamic alloc, need free
     struct list_head node;
 };
 

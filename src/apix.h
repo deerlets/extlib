@@ -7,20 +7,6 @@
 extern "C" {
 #endif
 
-/*
- * apinode
- */
-
-struct apinode;
-
-struct apinode *apinode_new();
-void apinode_destroy(struct apinode *node);
-int apinode_poll(struct apinode *node, int /*ms*/ timeout);
-
-/*
- * apicore
- */
-
 struct apicore;
 
 struct apicore *apicore_new();
