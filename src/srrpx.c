@@ -1,7 +1,9 @@
 #include "srrpx.h"
 #include "stddefx.h"
+#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 
 #define SERIAL_MAX_LEN 32
@@ -64,4 +66,20 @@ int srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet *pac)
     memcpy(pac->data, data_delimiter, len_data);
 
     return strlen(buf) + 1;
+}
+
+int srrp_write_request(char *buf, size_t size, const char *header, const char *data)
+{
+    size_t len = strlen(header) + strlen(data) + 10;
+    assert(len < SRRP_LENGTH_MAX);
+    snprintf(buf, size, ">0,$,%.4lu:%s%s", len, header, data);
+    return len;
+}
+
+int srrp_write_response(char *buf, size_t size, const char *header, const char *data)
+{
+    size_t len = strlen(header) + strlen(data) + 10;
+    assert(len < SRRP_LENGTH_MAX);
+    snprintf(buf, size, "<0,$,%.4lu:%s%s", len, header, data);
+    return len;
 }

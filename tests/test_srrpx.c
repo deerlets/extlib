@@ -14,20 +14,27 @@ static void test_srrp(void **status)
     struct srrp_packet pac = {0};
     int nr = 0;
 
-    const char req[] = ">0,$,58:hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
-    const char resp[] = "<0,$,60:0x13/hello/x{err:0,errmsg:'succ',data:{msg:'world'}}";
+    char req[256] = {0};
+    char resp[256] = {0};
+
+    srrp_write_request(
+        req, sizeof(req), "/hello/x",
+        "{name:'yon',age:'18',equip:['hat','shoes']}");
+    srrp_write_response(
+        resp, sizeof(resp), "0x13/hello/x",
+        "{err:0,errmsg:'succ',data:{msg:'world'}}");
 
     nr = srrp_read_one_packet(req, sizeof(req), &pac);
-    assert_true(nr == sizeof(req));
+    assert_true(nr == strlen(req) + 1);
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(req));
-    assert_true(strcmp(pac.header, "hello/x") == 0);
+    assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
 
     nr = srrp_read_one_packet(resp, sizeof(resp), &pac);
-    assert_true(nr == sizeof(resp));
+    assert_true(nr == strlen(resp) + 1);
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(resp));
@@ -46,7 +53,7 @@ static void test_srrp(void **status)
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(req));
-    assert_true(strcmp(pac.header, "hello/x") == 0);
+    assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
 
