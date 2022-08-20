@@ -8,7 +8,7 @@
 static void test_json(void **status)
 {
     struct json_object *jo = json_object_new(
-        "{header: '/hello/x', test: {len: 12, name: yon}}");
+        "{header: '/hello/x', test: {len: 12, name: 'yon'}}");
 
     int value_int = 0;
     assert_true(json_get_int(jo, "/test/len", &value_int) == 0);
@@ -16,7 +16,7 @@ static void test_json(void **status)
 
     char value_str[256];
     assert_true(json_get_string(jo, "/header", value_str, sizeof(value_str)) == 0);
-    assert_string_equal(value_str, "'/hello/x'");
+    assert_string_equal(value_str, "/hello/x");
     assert_true(json_get_string(jo, "/test/name", value_str, sizeof(value_str)) == 0);
     assert_string_equal(value_str, "yon");
 

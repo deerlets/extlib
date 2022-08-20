@@ -11,11 +11,6 @@ enum json_errno {
     JSON_ERR_TYPE,
 };
 
-enum json_type {
-    JSON_TYPE_INT = 0,
-    JSON_TYPE_BOOL,
-};
-
 struct json_object {
     int errno;
     char *raw;
@@ -113,7 +108,7 @@ static int json_walk(struct json_object *jo, const char *str, const char *path)
     }
 }
 
-int __json_get_string(struct json_object *jo, char *value, size_t size)
+static int __json_get_string(struct json_object *jo, char *value, size_t size)
 {
     assert(value != NULL);
     const char *str = jo->raw;
@@ -153,9 +148,13 @@ int __json_get_string(struct json_object *jo, char *value, size_t size)
             return -1;
         }
         assert(value_end != NULL);
-        size_t cpy_cnt = value_end - str - i;
+        if ((str[i] != '\'' && str[i] != '"') || str[i] != *(value_end-1)) {
+            jo->errno = JSON_ERR_TYPE;
+            return -1;
+        }
+        size_t cpy_cnt = value_end - str - i - 2;
         if (cpy_cnt > size - 1) cpy_cnt = size - 1;
-        memcpy(value, str + i, cpy_cnt);
+        memcpy(value, str + i + 1, cpy_cnt);
         value[cpy_cnt] = 0;
         return 0;
     }
@@ -171,7 +170,7 @@ int json_get_string(struct json_object *jo, const char *path, char *value, size_
     return __json_get_string(jo, value, size);
 }
 
-int __json_get_int(struct json_object *jo, int *value)
+static int __json_get_int(struct json_object *jo, int *value)
 {
     assert(value != NULL);
     const char *str = jo->raw;
