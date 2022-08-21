@@ -101,8 +101,8 @@ static int unix_poll(struct apisink *sink, int timeout)
         return -1;
     }
 
-    struct sinkfd *pos;
-    list_for_each_entry(pos, &sink->sinkfds, node_sink) {
+    struct sinkfd *pos, *n;
+    list_for_each_entry_safe(pos, n, &sink->sinkfds, node_sink) {
         if (nr_recv_fds == 0) break;
 
         if (!FD_ISSET(pos->fd, &recvfds))
@@ -131,7 +131,15 @@ static int unix_poll(struct apisink *sink, int timeout)
             autobuf_tidy(pos->rxbuf);
             int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
                              autobuf_spare(pos->rxbuf), 0);
-            autobuf_write_advance(pos->rxbuf, nread);
+            if (nread == -1) {
+                LOG_DEBUG("[recv] (%d) %s", errno, strerror(errno));
+                sinkfd_destroy(pos);
+            } else if (nread == 0) {
+                LOG_DEBUG("[recv] (%d) finished");
+                sinkfd_destroy(pos);
+            } else {
+                autobuf_write_advance(pos->rxbuf, nread);
+            }
         }
     }
 
