@@ -1,4 +1,4 @@
-#include "crc16.h"
+#include "crc16x.h"
 
 /*
  * The crc32 is licensed under the Apache License, Version 2.0, and a copy of the license is included in this file.
@@ -51,9 +51,18 @@ static const uint16_t crc16tab[256]= {
     0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
 };
 
-uint16_t crc16(const char *buf, int len) {
+uint16_t crc16(const char *buf, int len)
+{
     int counter;
     uint16_t crc = 0;
+    for (counter = 0; counter < len; counter++)
+        crc = (crc<<8) ^ crc16tab[((crc>>8) ^ *buf++)&0x00FF];
+    return crc;
+}
+
+uint16_t crc16_crc(uint16_t crc, const char *buf, int len)
+{
+    int counter;
     for (counter = 0; counter < len; counter++)
         crc = (crc<<8) ^ crc16tab[((crc>>8) ^ *buf++)&0x00FF];
     return crc;

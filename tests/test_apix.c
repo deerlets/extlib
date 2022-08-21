@@ -14,7 +14,7 @@
 #include "apix.h"
 #include "apix-posix.h"
 #include "srrpx.h"
-#include "crc16.h"
+#include "crc16x.h"
 #include "logx.h"
 
 #define UNIX_ADDR "test_apisink_unix"

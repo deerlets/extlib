@@ -11,7 +11,6 @@
 #include "apix.h"
 #include "apix-posix.h"
 #include "srrpx.h"
-#include "crc16.h"
 #include "optx.h"
 #include "logx.h"
 

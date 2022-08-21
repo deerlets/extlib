@@ -8,10 +8,9 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "apix.h"
 #include "apix-posix.h"
+#include "apix-service.h"
 #include "srrpx.h"
-#include "crc16.h"
 #include "logx.h"
 
 #define SERIAL_ADDR "/dev/ttyUSB0"
@@ -32,19 +31,19 @@ static void test_api_serial(void **status)
     int rc = apicore_ioctl(core, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
-    //int nr = 0;
-    //char buf[256];
-    //for (int i = 0; i < 3; i++) {
-    //    nr = apicore_send(core, fd, "hello world\n", 12);
-    //    LOG_INFO("%d", nr);
-    //    bzero(buf, sizeof(buf));
-    //    sleep(1);
-    //    nr = apicore_recv(core, fd, buf, sizeof(buf));
-    //    LOG_INFO("%d, %s", nr, buf);
-    //}
+    for (int i = 0; i < 3; i++) {
+        int nr = 0;
+        char buf[256];
+        char req[256];
+        int nreq = 0;
 
-    while (1) {
-        apicore_poll(core, 1000);
+        nreq = srrp_write_request(req, sizeof(req), "/0012/echo", "{msg:'hello'}");
+        nr = apicore_send(core, fd, req, nreq);
+        LOG_INFO("%d, %s", nr, req);
+        bzero(buf, sizeof(buf));
+        sleep(1);
+        nr = apicore_recv(core, fd, buf, sizeof(buf));
+        LOG_INFO("%d, %s", nr, buf);
     }
 
     apicore_close(core, fd);

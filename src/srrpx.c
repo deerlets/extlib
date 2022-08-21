@@ -1,10 +1,11 @@
 #include "srrpx.h"
-#include "stddefx.h"
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include "stddefx.h"
+#include "crc16x.h"
 
 #define SERIAL_MAX_LEN 32
 #define LENGTH_MAX_LEN 32
@@ -77,7 +78,7 @@ int srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet *pac)
         memcpy(tmp_crc16, delimiter + 1, 4/*crc16*/);
         unsigned int hex;
         sscanf(tmp_crc16, "%x", &hex);
-        pac->crc16 = hex;
+        pac->crc16_req = hex;
         int len_header = data_delimiter - delimiter - 1 - 4/*crc16*/;
         pac->header = malloc(len_header + 1);
         memset(pac->header, 0, len_header + 1);
@@ -107,7 +108,7 @@ int srrp_write_response(
 {
     size_t len = 10 + 4/*crc16*/ + strlen(header) + strlen(data);
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "<0,$,%.4u:%x%s%s", (uint32_t)len, crc16_req, header, data);
+    int nr = snprintf(buf, size, "<0,$,%.4u:%.4x%s%s", (uint32_t)len, crc16_req, header, data);
     assert(nr == len);
     return len + 1;
 }

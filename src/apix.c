@@ -7,7 +7,7 @@
 #include <time.h>
 #include "apix.h"
 #include "apix-service.h"
-#include "crc16.h"
+#include "crc16x.h"
 #include "stddefx.h"
 #include "listx.h"
 #include "autobufx.h"
@@ -23,9 +23,11 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
         int nr = srrp_read_one_packet(
             autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf), &pac);
         if (nr == -1) {
-            LOG_WARN("parse packet failed, %s", autobuf_read_pos(sinkfd->rxbuf));
-            autobuf_read_advance(
-                sinkfd->rxbuf, strlen(autobuf_read_pos(sinkfd->rxbuf)) + 1);
+            char *tmp = malloc(autobuf_used(sinkfd->rxbuf) + 1);
+            bzero(tmp, autobuf_used(sinkfd->rxbuf) + 1);
+            memcpy(tmp, autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf));
+            LOG_WARN("parse packet failed: %s", tmp);
+            autobuf_read_advance(sinkfd->rxbuf, autobuf_used(sinkfd->rxbuf));
             continue;
         }
 
@@ -56,7 +58,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             memcpy(resp->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
             resp->raw_len = nr;
             resp->sinkfd = sinkfd;
-            resp->crc16_req = pac.crc16;
+            resp->crc16_req = pac.crc16_req;
             resp->leader = pac.leader;
             snprintf(resp->header, sizeof(resp->header), "%s", pac.header);
             resp->content = strdup(pac.data);

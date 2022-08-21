@@ -56,7 +56,7 @@ struct srrp_packet {
     int serial;
     char seat;
     size_t len;
-    uint16_t crc16; // crc16_req when leader is '<'
+    uint16_t crc16_req; // crc16_req when leader is '<'
     char *header;
     char *data;
 };

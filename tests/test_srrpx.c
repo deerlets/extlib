@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "srrpx.h"
-#include "crc16.h"
+#include "crc16x.h"
 
 #define UNIX_ADDR "test_apisink_unix"
 
@@ -21,11 +21,6 @@ static void test_srrp_request_reponse(void **status)
     srrp_write_request(
         req, sizeof(req), "/hello/x",
         "{name:'yon',age:'18',equip:['hat','shoes']}");
-    const char *tmp = "/hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
-    uint16_t crc = crc16(tmp, strlen(tmp));
-    srrp_write_response(
-        resp, sizeof(resp), crc, "/hello/x",
-        "{err:0,errmsg:'succ',data:{msg:'world'}}");
 
     nr = srrp_read_one_packet(req, sizeof(req), &pac);
     assert_true(nr == strlen(req) + 1);
@@ -36,12 +31,18 @@ static void test_srrp_request_reponse(void **status)
     free((void *)pac.header);
     free((void *)pac.data);
 
+    uint16_t crc = crc16(pac.header, strlen(pac.header));
+    crc = crc16_crc(crc, pac.data, strlen(pac.data));
+    srrp_write_response(
+        resp, sizeof(resp), crc, "/hello/x",
+        "{err:0,errmsg:'succ',data:{msg:'world'}}");
+
     nr = srrp_read_one_packet(resp, sizeof(resp), &pac);
     assert_true(nr == strlen(resp) + 1);
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(resp));
-    assert_true(pac.crc16 == crc);
+    assert_true(pac.crc16_req == crc);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -66,7 +67,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(resp));
-    assert_true(pac.crc16 == crc);
+    assert_true(pac.crc16_req == crc);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
