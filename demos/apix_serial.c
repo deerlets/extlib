@@ -32,16 +32,19 @@ static void test_api_serial(void **status)
     int rc = apicore_ioctl(core, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
-    int nr = 0;
-    char buf[256];
+    //int nr = 0;
+    //char buf[256];
+    //for (int i = 0; i < 3; i++) {
+    //    nr = apicore_send(core, fd, "hello world\n", 12);
+    //    LOG_INFO("%d", nr);
+    //    bzero(buf, sizeof(buf));
+    //    sleep(1);
+    //    nr = apicore_recv(core, fd, buf, sizeof(buf));
+    //    LOG_INFO("%d, %s", nr, buf);
+    //}
 
-    for (int i = 0; i < 3; i++) {
-        nr = apicore_send(core, fd, "hello world\n", 12);
-        LOG_INFO("%d", nr);
-        bzero(buf, sizeof(buf));
-        sleep(1);
-        nr = apicore_recv(core, fd, buf, sizeof(buf));
-        LOG_INFO("%d, %s", nr, buf);
+    while (1) {
+        apicore_poll(core, 1000);
     }
 
     apicore_close(core, fd);

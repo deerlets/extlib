@@ -29,3 +29,8 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif ()
+
+option(BUILD_DEMOS "Build all demos." OFF)
+if (BUILD_DEMOS)
+    add_subdirectory(demos)
+endif ()
