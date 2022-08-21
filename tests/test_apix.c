@@ -123,7 +123,7 @@ static void test_api_request_response(void **status)
     pthread_create(&client_pid, NULL, client_thread, NULL);
 
     while (client_finished == 0 || server_finished == 0)
-        apicore_poll(core, 1000);
+        apicore_poll(core);
 
     pthread_join(client_pid, NULL);
     pthread_join(server_pid, NULL);
@@ -238,7 +238,7 @@ static void test_api_subscribe_publish(void **status)
     pthread_create(&publish_pid, NULL, publish_thread, NULL);
 
     while (publish_finished == 0 || subscribe_finished == 0)
-        apicore_poll(core, 1000);
+        apicore_poll(core);
 
     pthread_join(publish_pid, NULL);
     pthread_join(subscribe_pid, NULL);

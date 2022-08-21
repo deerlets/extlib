@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#include <sys/time.h>
 #include "stddefx.h"
 #include "apix.h"
 #include "apix-service.h"
@@ -23,7 +25,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
         int nr = srrp_read_one_packet(
             atbuf_read_pos(sinkfd->rxbuf), atbuf_used(sinkfd->rxbuf), &pac);
         if (nr == -1) {
-            if (time(0) < sinkfd->ts_poll_recv + PARSE_PACKET_TIMEOUT / 1000)
+            if (time(0) < sinkfd->ts_poll_recv.tv_sec + PARSE_PACKET_TIMEOUT / 1000)
                 break;
 
             LOG_WARN("parse packet failed: %s", atbuf_read_pos(sinkfd->rxbuf));
@@ -31,7 +33,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             if (offset == -1 || offset == 0)
                 atbuf_read_advance(sinkfd->rxbuf, atbuf_used(sinkfd->rxbuf));
             else {
-                assert(offset < atbuf_used(sinkfd->rxbuf));
+                assert((size_t)offset < atbuf_used(sinkfd->rxbuf));
                 atbuf_read_advance(sinkfd->rxbuf, offset);
             }
             break;
@@ -424,17 +426,15 @@ static void handle_topic_msg(struct apicore *core)
     }
 }
 
-int apicore_poll(struct apicore *core, int timeout)
+int apicore_poll(struct apicore *core)
 {
-    int cnt = 0;
-    struct list_head *pos;
-    list_for_each(pos, &core->sinks)
-        cnt++;
+    core->poll_cnt = 0;
+    gettimeofday(&core->poll_ts, NULL);
 
     // poll each sink
     struct apisink *pos_sink;
     list_for_each_entry(pos_sink, &core->sinks, node) {
-        if (pos_sink->ops.poll(pos_sink, timeout / cnt) != 0) {
+        if (pos_sink->ops.poll(pos_sink) != 0) {
             LOG_ERROR("%s", strerror(errno));
         }
     }
@@ -442,9 +442,23 @@ int apicore_poll(struct apicore *core, int timeout)
     // parse each sinkfds
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
+        if (timercmp(&core->poll_ts, &pos_fd->ts_poll_recv, <))
+            core->poll_cnt++;
         if (atbuf_used(pos_fd->rxbuf)) {
             parse_packet(core, pos_fd);
         }
+    }
+
+    LOG_DEBUG("poll_cnt: %d", core->poll_cnt);
+    if (core->poll_cnt == 0) {
+        if (core->idle_usec != APICORE_IDLE_MAX) {
+            core->idle_usec += APICORE_IDLE_MAX / 10;
+            if (core->idle_usec > APICORE_IDLE_MAX)
+                core->idle_usec = APICORE_IDLE_MAX;
+        }
+        usleep(core->idle_usec);
+    } else {
+        core->idle_usec = APICORE_IDLE_MAX / 10;
     }
 
     // hander each msg

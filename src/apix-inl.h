@@ -2,6 +2,7 @@
 #define __APIX_INL_H
 
 #include <stdint.h>
+#include <sys/time.h>
 #include "apix.h"
 #include "list.h"
 #include "atbuf.h"
@@ -16,6 +17,7 @@
 
 #define API_REQUEST_TIMEOUT 3000 /*ms*/
 #define PARSE_PACKET_TIMEOUT 1000 /*ms*/
+#define APICORE_IDLE_MAX (1 * 1000 * 1000) /*us*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,7 +35,7 @@ typedef struct apisink_ops {
     int (*ioctl)(struct apisink *sink, int fd, unsigned int cmd, unsigned long arg);
     int (*send)(struct apisink *sink, int fd, const void *buf, size_t len);
     int (*recv)(struct apisink *sink, int fd, void *buf, size_t size);
-    int (*poll)(struct apisink *sink, int timeout);
+    int (*poll)(struct apisink *sink);
 } apisink_ops_t;
 
 struct apisink {
@@ -60,7 +62,7 @@ struct sinkfd {
     char addr[SINKFD_ADDR_SIZE];
     atbuf_t *txbuf;
     atbuf_t *rxbuf;
-    uint64_t ts_poll_recv;
+    struct timeval ts_poll_recv;
     struct apisink *sink;
     struct list_head node_sink;
     struct list_head node_core;
@@ -167,6 +169,9 @@ struct apicore {
     struct list_head topics;
     struct list_head sinkfds;
     struct list_head sinks;
+    struct timeval poll_ts;
+    int poll_cnt;
+    uint64_t idle_usec;
 };
 
 #ifdef __cplusplus

@@ -95,11 +95,11 @@ static int unix_recv(struct apisink *sink, int fd, void *buf, size_t size)
     return recv(fd, buf, size, 0);
 }
 
-static int unix_poll(struct apisink *sink, int timeout)
+static int unix_poll(struct apisink *sink)
 {
     struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
 
-    struct timeval tv = { timeout / 1000, timeout % 1000 * 1000 };
+    struct timeval tv = { 0, 0 };
     fd_set recvfds;
     memcpy(&recvfds, &unix_sink->fds, sizeof(recvfds));
 
@@ -148,7 +148,7 @@ static int unix_poll(struct apisink *sink, int timeout)
                 sinkfd_destroy(pos);
             } else {
                 atbuf_write_advance(pos->rxbuf, nread);
-                pos->ts_poll_recv = time(0);
+                gettimeofday(&pos->ts_poll_recv, NULL);
             }
         }
     }
@@ -272,6 +272,8 @@ static int serial_close(struct apisink *sink, int fd)
 static int
 serial_ioctl(struct apisink *sink, int fd, unsigned int cmd, unsigned long arg)
 {
+    UNUSED(sink);
+    UNUSED(cmd);
     struct ioctl_serial_param *sp = (struct ioctl_serial_param *)arg;
     struct termios newtio, oldtio;
 
@@ -339,11 +341,11 @@ static int serial_recv(struct apisink *sink, int fd, void *buf, size_t size)
     return read(fd, buf, size);
 }
 
-static int serial_poll(struct apisink *sink, int timeout)
+static int serial_poll(struct apisink *sink)
 {
     struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
 
-    struct timeval tv = { timeout / 1000, timeout % 1000 * 1000 };
+    struct timeval tv = { 0, 0 };
     fd_set recvfds;
     memcpy(&recvfds, &unix_sink->fds, sizeof(recvfds));
 
@@ -374,7 +376,7 @@ static int serial_poll(struct apisink *sink, int timeout)
             sinkfd_destroy(pos);
         } else {
             atbuf_write_advance(pos->rxbuf, nread);
-            pos->ts_poll_recv = time(0);
+            gettimeofday(&pos->ts_poll_recv, NULL);
         }
     }
 
