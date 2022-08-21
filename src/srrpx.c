@@ -96,7 +96,7 @@ int srrp_write_request(char *buf, size_t size, const char *header, const char *d
 {
     size_t len = strlen(header) + strlen(data) + 10;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, ">0,$,%.4lu:%s%s", len, header, data);
+    int nr = snprintf(buf, size, ">0,$,%.4u:%s%s", (uint32_t)len, header, data);
     assert(nr == len);
     return len;
 }
@@ -107,7 +107,7 @@ int srrp_write_response(
 {
     size_t len = 10 + 4/*crc16*/ + strlen(header) + strlen(data);
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "<0,$,%.4lu:%x%s%s", len, crc16_req, header, data);
+    int nr = snprintf(buf, size, "<0,$,%.4u:%x%s%s", (uint32_t)len, crc16_req, header, data);
     assert(nr == len);
     return len;
 }
@@ -116,7 +116,7 @@ int srrp_write_subscribe(char *buf, size_t size, const char *header, const char 
 {
     size_t len = strlen(header) + strlen(ctrl) + 10;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "#0,$,%.4lu:%s%s", len, header, ctrl);
+    int nr = snprintf(buf, size, "#0,$,%.4u:%s%s", (uint32_t)len, header, ctrl);
     assert(nr == len);
     return len;
 }
@@ -126,7 +126,7 @@ int /*nr*/ srrp_write_unsubscribe(
 {
     size_t len = strlen(header) + 2/*data*/ + 10;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "-0,$,%.4lu:%s{}", len, header);
+    int nr = snprintf(buf, size, "-0,$,%.4u:%s{}", (uint32_t)len, header);
     assert(nr == len);
     return len;
 }
@@ -135,7 +135,7 @@ int srrp_write_publish(char *buf, size_t size, const char *header, const char *d
 {
     size_t len = strlen(header) + strlen(data) + 10;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "@0,$,%.4lu:%s%s", len, header, data);
+    int nr = snprintf(buf, size, "@0,$,%.4u:%s%s", (uint32_t)len, header, data);
     assert(nr == len);
     return len;
 }
