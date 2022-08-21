@@ -144,7 +144,16 @@ static void service_add_handler(
         return;
     }
 
-    struct api_service *serv = malloc(sizeof(*serv));
+    struct api_service *serv = find_service(
+        &core->services, header, strlen(header));
+
+    if (serv != NULL) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "DUP SERVICE", 11);
+        return;
+    }
+
+    serv = malloc(sizeof(*serv));
     memset(serv, 0, sizeof(*serv));
     snprintf(serv->header, sizeof(serv->header), "%s", header);
     serv->ts_alive = time(0);
@@ -204,6 +213,8 @@ static void service_alive_handler(
         sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "SERVICE NOT FOUND", 17);
     } else {
         serv->ts_alive = time(0);
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
     }
 }
 
