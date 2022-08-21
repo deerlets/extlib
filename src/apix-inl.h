@@ -9,7 +9,7 @@
 #define APISINK_NAME_SIZE 64
 #define SINKFD_ADDR_SIZE 64
 #define API_HEADER_SIZE 256
-#define API_ERRMSG_SIZE 256
+#define API_TOPIC_SUBSCRIBE_MAX 32
 
 #define APICORE_SERVICE_ADD "/apicore/service/add"
 #define APICORE_SERVICE_DEL "/apicore/service/del"
@@ -22,71 +22,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/*
- * api_request
- * api_response
- * api_service
- */
-
-struct api_request {
-    void *raw;
-    size_t raw_len;
-    int state;
-    uint64_t ts_create;
-    uint64_t ts_send;
-
-    struct sinkfd *sinkfd;
-    uint16_t crc16;
-    char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, need free
-    struct list_head node;
-};
-
-struct api_response {
-    void *raw;
-    size_t raw_len;
-
-    struct sinkfd *sinkfd;
-    uint16_t crc16_req;
-    char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, need free
-    struct list_head node;
-};
-
-struct api_service {
-    char header[API_HEADER_SIZE];
-    struct sinkfd *sinkfd;
-    struct list_head node;
-};
-
-#define api_request_delete(req) \
-{ \
-    list_del(&req->node); \
-    free(req->raw); \
-    free(req->content); \
-    free(req); \
-}
-
-#define api_response_delete(resp) \
-{ \
-    list_del(&resp->node); \
-    free(resp->raw); \
-    free(resp->content); \
-    free(resp); \
-}
-
-/*
- * apicore
- */
-
-struct apicore {
-    struct list_head requests;
-    struct list_head responses;
-    struct list_head services;
-    struct list_head sinkfds;
-    struct list_head sinks;
-};
 
 /*
  * apisink
@@ -136,6 +71,102 @@ void sinkfd_destroy();
 
 struct sinkfd *find_sinkfd_in_apicore(struct apicore *core, int fd);
 struct sinkfd *find_sinkfd_in_apisink(struct apisink *sink, int fd);
+
+/*
+ * api_request
+ * api_response
+ * api_service
+ * api_topic
+ */
+
+struct api_request {
+    void *raw;
+    size_t raw_len;
+    int state;
+    uint64_t ts_create;
+    uint64_t ts_send;
+
+    struct sinkfd *sinkfd;
+    uint16_t crc16;
+    char leader;
+    char header[API_HEADER_SIZE];
+    char *content; // dynamic alloc, need free
+    struct list_head node;
+};
+
+struct api_response {
+    void *raw;
+    size_t raw_len;
+
+    struct sinkfd *sinkfd;
+    uint16_t crc16_req;
+    char leader;
+    char header[API_HEADER_SIZE];
+    char *content; // dynamic alloc, need free
+    struct list_head node;
+};
+
+struct api_service {
+    char header[API_HEADER_SIZE];
+    struct sinkfd *sinkfd;
+    struct list_head node;
+};
+
+struct api_topic_msg {
+    void *raw;
+    size_t raw_len;
+
+    struct sinkfd *sinkfd;
+    char leader;
+    char header[API_HEADER_SIZE];
+    char *content; // dynamic alloc, need free
+    struct list_head node;
+};
+
+struct api_topic {
+    char header[API_HEADER_SIZE];
+    struct sinkfd *sinkfds[API_TOPIC_SUBSCRIBE_MAX];
+    int nr_sinkfds;
+    struct list_head node;
+};
+
+#define api_request_delete(req) \
+{ \
+    list_del(&req->node); \
+    free(req->raw); \
+    free(req->content); \
+    free(req); \
+}
+
+#define api_response_delete(resp) \
+{ \
+    list_del(&resp->node); \
+    free(resp->raw); \
+    free(resp->content); \
+    free(resp); \
+}
+
+#define api_topic_msg_delete(tmsg) \
+{ \
+    list_del(&tmsg->node); \
+    free(tmsg->raw); \
+    free(tmsg->content); \
+    free(tmsg); \
+}
+
+/*
+ * apicore
+ */
+
+struct apicore {
+    struct list_head requests;
+    struct list_head responses;
+    struct list_head services;
+    struct list_head topic_msgs;
+    struct list_head topics;
+    struct list_head sinkfds;
+    struct list_head sinks;
+};
 
 #ifdef __cplusplus
 }

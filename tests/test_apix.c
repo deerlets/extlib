@@ -38,7 +38,6 @@ static void *client_thread(void *args)
 
     sleep(1);
 
-
     char req[256] = {0};
     srrp_write_request(
         req, sizeof(req), "/hello/x",
@@ -108,7 +107,7 @@ static void *server_thread(void *args)
     return NULL;
 }
 
-static void test_api(void **status)
+static void test_api_request_response(void **status)
 {
     struct apicore *core = apicore_new();
     apicore_enable_posix(core);
@@ -130,10 +129,106 @@ static void test_api(void **status)
     apicore_destroy(core);
 }
 
+static int publish_finished = 0;
+static int subscribe_finished = 0;
+
+static void *publish_thread(void *args)
+{
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (fd == -1)
+        return NULL;
+
+    int rc = 0;
+    struct sockaddr_un addr = {0};
+    addr.sun_family = PF_UNIX;
+    strcpy(addr.sun_path, UNIX_ADDR);
+
+    rc = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+    if (rc == -1) {
+        close(fd);
+        return NULL;
+    }
+
+    sleep(1);
+
+    char pub[256] = {0};
+    srrp_write_publish(pub, sizeof(pub), "/test-topic", "{msg:'ahaa'}");
+    rc = send(fd, pub, strlen(pub) + 1, 0);
+
+    close(fd);
+    publish_finished = 1;
+    return NULL;
+}
+
+static void *subscribe_thread(void *args)
+{
+    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (fd == -1)
+        return NULL;
+
+    int rc = 0;
+    struct sockaddr_un addr = {0};
+    addr.sun_family = PF_UNIX;
+    strcpy(addr.sun_path, UNIX_ADDR);
+
+    rc = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+    if (rc == -1) {
+        close(fd);
+        return NULL;
+    }
+
+    char buf[256] = {0};
+    char sub[256] = {0};
+    char unsub[256] = {0};
+
+    srrp_write_subscribe(sub, sizeof(sub), "/test-topic", "{}");
+    srrp_write_unsubscribe(unsub, sizeof(unsub), "/test-topic");
+
+    rc = send(fd, sub, strlen(sub) + 1, 0);
+    memset(buf, 0, sizeof(buf));
+    rc = recv(fd, buf, sizeof(buf), 0);
+    LOG_INFO("server recv sub: %s", buf);
+
+    rc = recv(fd, buf, sizeof(buf), 0);
+    LOG_INFO("server recv pub: %s", buf);
+
+    rc = send(fd, unsub, strlen(unsub) + 1, 0);
+    memset(buf, 0, sizeof(buf));
+    rc = recv(fd, buf, sizeof(buf), 0);
+    LOG_INFO("server recv unsub: %s", buf);
+
+    close(fd);
+    subscribe_finished = 1;
+    return NULL;
+}
+
+static void test_api_subscribe_publish(void **status)
+{
+    struct apicore *core = apicore_new();
+    apicore_enable_posix(core);
+    int fd = apicore_open(core, APISINK_UNIX, UNIX_ADDR);
+
+    pthread_t subscribe_pid;
+    pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);
+    pthread_t publish_pid;
+    pthread_create(&publish_pid, NULL, publish_thread, NULL);
+
+    while (publish_finished == 0 || subscribe_finished == 0)
+        apicore_poll(core, 1000);
+
+    pthread_join(publish_pid, NULL);
+    pthread_join(subscribe_pid, NULL);
+
+    apicore_close(core, fd);
+    apicore_disable_posix(core);
+    apicore_destroy(core);
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_api),
+        cmocka_unit_test(test_api_request_response),
+        cmocka_unit_test(test_api_subscribe_publish),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }

@@ -42,7 +42,8 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             memcpy(tmp + strlen(pac.header), pac.data, strlen(pac.data));
             req->crc16 = crc16(tmp, strlen(tmp));
             free(tmp);
-            strcpy(req->header, pac.header);
+            req->leader = pac.leader;
+            snprintf(req->header, sizeof(req->header), "%s", pac.header);
             req->content = strdup(pac.data);
             INIT_LIST_HEAD(&req->node);
             list_add(&req->node, &core->requests);
@@ -54,10 +55,25 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             resp->raw_len = nr;
             resp->sinkfd = sinkfd;
             resp->crc16_req = pac.crc16;
-            strcpy(resp->header, pac.header);
+            resp->leader = pac.leader;
+            snprintf(resp->header, sizeof(resp->header), "%s", pac.header);
             resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
             list_add(&resp->node, &core->responses);
+        } else if (pac.leader == SRRP_SUBSCRIBE_LEADER ||
+                   pac.leader == SRRP_UNSUBSCRIBE_LEADER ||
+                   pac.leader == SRRP_PUBLISH_LEADER) {
+            struct api_topic_msg *tmsg = malloc(sizeof(*tmsg));
+            memset(tmsg, 0, sizeof(*tmsg));
+            tmsg->raw = malloc(nr);
+            memcpy(tmsg->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            tmsg->raw_len = nr;
+            tmsg->sinkfd = sinkfd;
+            tmsg->leader = pac.leader;
+            snprintf(tmsg->header, sizeof(tmsg->header), "%s", pac.header);
+            tmsg->content = strdup(pac.data);
+            INIT_LIST_HEAD(&tmsg->node);
+            list_add(&tmsg->node, &core->topic_msgs);
         }
 
         free(pac.header);
@@ -67,10 +83,22 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 }
 
 static struct api_service *
-find_apiservice(struct list_head *services, const void *header, size_t len)
+find_service(struct list_head *services, const void *header, size_t len)
 {
     struct api_service *pos;
     list_for_each_entry(pos, services, node) {
+        if (memcmp(pos->header, header, len) == 0) {
+            return pos;
+        }
+    }
+    return NULL;
+}
+
+static struct api_topic *
+find_topic(struct list_head *topics, const void *header, size_t len)
+{
+    struct api_topic *pos;
+    list_for_each_entry(pos, topics, node) {
         if (memcmp(pos->header, header, len) == 0) {
             return pos;
         }
@@ -115,7 +143,7 @@ static void service_del_handler(
         return;
     }
 
-    struct api_service *serv = find_apiservice(
+    struct api_service *serv = find_service(
         &core->services, header, strlen(header));
 
     if (serv == NULL || serv->sinkfd != sinkfd) {
@@ -129,12 +157,79 @@ static void service_del_handler(
     }
 }
 
+static void topic_sub_handler(struct apicore *core, struct api_topic_msg *tmsg)
+{
+    struct api_topic *topic = NULL;
+    struct api_topic *pos;
+    list_for_each_entry(pos, &core->topics, node) {
+        if (strcmp(topic->header, tmsg->header) == 0) {
+            topic = pos;
+            break;
+        }
+    }
+    if (topic == NULL) {
+        topic = malloc(sizeof(*topic));
+        memset(topic, 0, sizeof(*topic));
+        snprintf(topic->header, sizeof(topic->header), "%s", tmsg->header);
+        INIT_LIST_HEAD(&topic->node);
+        list_add(&topic->node, &core->topics);
+    }
+    assert(topic);
+    topic->sinkfds[topic->nr_sinkfds] = tmsg->sinkfd;
+    topic->nr_sinkfds++;
+
+    assert(tmsg->sinkfd->sink->ops.send);
+    tmsg->sinkfd->sink->ops.send(tmsg->sinkfd->sink, tmsg->sinkfd->fd, "Sub OK", 6);
+}
+
+static void topic_unsub_handler(struct apicore *core, struct api_topic_msg *tmsg)
+{
+    struct api_topic *topic = NULL;
+    list_for_each_entry(topic, &core->topics, node) {
+        if (strcmp(topic->header, tmsg->header) == 0) {
+            break;
+        }
+    }
+    if (topic) {
+        for (int i = 0; i < topic->nr_sinkfds; i++) {
+            if (topic->sinkfds[i] == tmsg->sinkfd) {
+                topic->sinkfds[i] = topic->sinkfds[topic->nr_sinkfds-1];
+                topic->nr_sinkfds--;
+            }
+        }
+    }
+
+    assert(tmsg->sinkfd->sink->ops.send);
+    tmsg->sinkfd->sink->ops.send(tmsg->sinkfd->sink, tmsg->sinkfd->fd, "Unsub OK", 8);
+}
+
+static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
+{
+    struct api_topic *topic = find_topic(
+        &core->topics, tmsg->header, strlen(tmsg->header));
+    if (topic) {
+        for (int i = 0; i < topic->nr_sinkfds; i++) {
+            // FIXME: sinkfd_destroy not delete sinkfd in api_topic,
+            //        shall we just store fd?
+            assert(topic->sinkfds[i]->sink->ops.send);
+            topic->sinkfds[i]->sink->ops.send(
+                topic->sinkfds[i]->sink, topic->sinkfds[i]->fd,
+                tmsg->raw, tmsg->raw_len);
+        }
+    } else {
+        // do nothing, just drop this msg
+        LOG_DEBUG("drop @: %s%s", tmsg->header, tmsg->content);
+    }
+}
+
 struct apicore *apicore_new()
 {
     struct apicore *core = malloc(sizeof(struct apicore));
     INIT_LIST_HEAD(&core->requests);
     INIT_LIST_HEAD(&core->responses);
     INIT_LIST_HEAD(&core->services);
+    INIT_LIST_HEAD(&core->topic_msgs);
+    INIT_LIST_HEAD(&core->topics);
     INIT_LIST_HEAD(&core->sinkfds);
     INIT_LIST_HEAD(&core->sinks);
     return core;
@@ -142,37 +237,133 @@ struct apicore *apicore_new()
 
 void apicore_destroy(struct apicore *core)
 {
-    struct api_request *pos_req, *n_req;
-    list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-        list_del_init(&pos_req->node);
-        free(pos_req);
+    {
+        struct api_request *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->requests, node)
+            api_request_delete(pos);
     }
 
-    struct api_response *pos_resp, *n_resp;
-    list_for_each_entry_safe(pos_resp, n_resp, &core->responses, node) {
-        list_del_init(&pos_resp->node);
-        free(pos_resp);
+    {
+        struct api_response *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->responses, node)
+            api_response_delete(pos);
     }
 
-    struct api_service *pos_serv, *n_serv;
-    list_for_each_entry_safe(pos_serv, n_serv, &core->services, node) {
-        list_del_init(&pos_serv->node);
-        free(pos_serv);
+    {
+        struct api_service *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->services, node) {
+            list_del_init(&pos->node);
+            free(pos);
+        }
     }
 
-    struct sinkfd *pos_sinkfd, *n_sinkfd;
-    list_for_each_entry_safe(pos_sinkfd, n_sinkfd, &core->sinkfds, node_core) {
-        list_del_init(&pos_sinkfd->node_core);
-        free(pos_sinkfd);
+    {
+        struct api_topic_msg *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->topic_msgs, node)
+            api_topic_msg_delete(pos);
     }
 
-    struct apisink *pos_sink, *n_sink;
-    list_for_each_entry_safe(pos_sink, n_sink, &core->sinks, node) {
-        apicore_del_sink(core, pos_sink);
-        apisink_fini(pos_sink);
+    {
+        struct api_topic *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->topics, node) {
+            list_del_init(&pos->node);
+            free(pos);
+        }
+    }
+
+    {
+        struct sinkfd *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->sinkfds, node_core)
+            sinkfd_destroy(pos);
+    }
+
+    {
+        struct apisink *pos, *n;
+        list_for_each_entry_safe(pos, n, &core->sinks, node) {
+            apicore_del_sink(core, pos);
+            apisink_fini(pos);
+        }
     }
 
     free(core);
+}
+
+static void handle_request(struct apicore *core)
+{
+    struct api_request *pos, *n;
+    list_for_each_entry_safe(pos, n, &core->requests, node) {
+        if (pos->state == API_REQUEST_ST_WAIT_RESPONSE) {
+            if (time(0) < pos->ts_send + API_REQUEST_TIMEOUT / 1000)
+                continue;
+            pos->sinkfd->sink->ops.send(
+                pos->sinkfd->sink, pos->sinkfd->fd,
+                "request timeout", 15);
+            LOG_DEBUG("request timeout: %s", pos->raw);
+            api_request_delete(pos);
+            continue;
+        }
+
+        LOG_INFO("poll >: %s%s", pos->header, pos->content);
+        if (strcmp(pos->header, APICORE_SERVICE_ADD) == 0) {
+            service_add_handler(core, pos->content, pos->sinkfd);
+            api_request_delete(pos);
+        } else if (strcmp(pos->header, APICORE_SERVICE_DEL) == 0) {
+            service_del_handler(core, pos->content, pos->sinkfd);
+            api_request_delete(pos);
+        } else {
+            struct api_service *serv = find_service(
+                &core->services, pos->header, strlen(pos->header));
+            if (serv) {
+                assert(serv->sinkfd->sink->ops.send);
+                serv->sinkfd->sink->ops.send(
+                    serv->sinkfd->sink, serv->sinkfd->fd,
+                    pos->raw, pos->raw_len);
+                pos->state = API_REQUEST_ST_WAIT_RESPONSE;
+                pos->ts_send = time(0);
+            } else {
+                pos->sinkfd->sink->ops.send(
+                    pos->sinkfd->sink, pos->sinkfd->fd,
+                    "SERVICE NOT FOUND", 17);
+                api_request_delete(pos);
+            }
+        }
+    }
+}
+
+static void handle_response(struct apicore *core)
+{
+    struct api_response *pos, *n;
+    list_for_each_entry_safe(pos, n, &core->responses, node) {
+        LOG_INFO("poll <: %s%s", pos->header, pos->content);
+        struct api_request *pos_req, *n_req;
+        list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
+            if (pos_req->crc16 == pos->crc16_req &&
+                strcmp(pos_req->header, pos->header) == 0) {
+                pos_req->sinkfd->sink->ops.send(
+                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
+                    pos->raw, pos->raw_len);
+                api_request_delete(pos_req);
+                break;
+            }
+        }
+        api_response_delete(pos);
+    }
+}
+
+static void handle_topic_msg(struct apicore *core)
+{
+    struct api_topic_msg *pos, *n;
+    list_for_each_entry_safe(pos, n, &core->topic_msgs, node) {
+        LOG_INFO("poll @: %s%s", pos->header, pos->content);
+        if (pos->leader == SRRP_SUBSCRIBE_LEADER) {
+            topic_sub_handler(core, pos);
+        } else if (pos->leader == SRRP_UNSUBSCRIBE_LEADER) {
+            topic_unsub_handler(core, pos);
+        } else {
+            topic_pub_handler(core, pos);
+        }
+        api_topic_msg_delete(pos);
+    }
 }
 
 int apicore_poll(struct apicore *core, int timeout)
@@ -196,61 +387,9 @@ int apicore_poll(struct apicore *core, int timeout)
         }
     }
 
-    struct api_request *pos_req, *n_req;
-    list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-        if (pos_req->state == API_REQUEST_ST_WAIT_RESPONSE) {
-            if (time(0) < pos_req->ts_send + API_REQUEST_TIMEOUT / 1000)
-                continue;
-            pos_req->sinkfd->sink->ops.send(
-                pos_req->sinkfd->sink, pos_req->sinkfd->fd,
-                "request timeout", 15);
-            LOG_DEBUG("request timeout: %s", pos_req->raw);
-            api_request_delete(pos_req);
-            continue;
-        }
-
-        LOG_INFO("poll >: %s%s", pos_req->header, pos_req->content);
-        if (strcmp(pos_req->header, APICORE_SERVICE_ADD) == 0) {
-            service_add_handler(core, pos_req->content, pos_req->sinkfd);
-            api_request_delete(pos_req);
-        } else if (strcmp(pos_req->header, APICORE_SERVICE_DEL) == 0) {
-            service_del_handler(core, pos_req->content, pos_req->sinkfd);
-            api_request_delete(pos_req);
-        } else {
-            struct api_service *serv = find_apiservice(
-                &core->services, pos_req->header, strlen(pos_req->header));
-            if (serv) {
-                assert(serv->sinkfd->sink->ops.send);
-                serv->sinkfd->sink->ops.send(
-                    serv->sinkfd->sink, serv->sinkfd->fd,
-                    pos_req->raw, pos_req->raw_len);
-                pos_req->state = API_REQUEST_ST_WAIT_RESPONSE;
-                pos_req->ts_send = time(0);
-            } else {
-                pos_req->sinkfd->sink->ops.send(
-                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
-                    "SERVICE NOT FOUND", 17);
-                api_request_delete(pos_req);
-            }
-        }
-    }
-
-    struct api_response *pos_resp, *n_resp;
-    list_for_each_entry_safe(pos_resp, n_resp, &core->responses, node) {
-        LOG_INFO("poll <: %s%s", pos_resp->header, pos_resp->content);
-        struct api_request *pos_req, *n_req;
-        list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-            if (pos_req->crc16 == pos_resp->crc16_req &&
-                strcmp(pos_req->header, pos_resp->header) == 0) {
-                pos_req->sinkfd->sink->ops.send(
-                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
-                    pos_resp->raw, pos_resp->raw_len);
-                api_request_delete(pos_req);
-                break;
-            }
-        }
-        api_response_delete(pos_resp);
-    }
+    handle_request(core);
+    handle_response(core);
+    handle_topic_msg(core);
 
     return 0;
 }
