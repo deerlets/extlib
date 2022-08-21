@@ -10,8 +10,8 @@
 #include <arpa/inet.h>
 #include "apix-posix.h"
 #include "apix-service.h"
-#include "srrpx.h"
-#include "logx.h"
+#include "srrp.h"
+#include "log.h"
 
 #define SERIAL_ADDR "/dev/ttyUSB0"
 

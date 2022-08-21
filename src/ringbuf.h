@@ -1,5 +1,5 @@
-#ifndef __RINGBUFX_H
-#define __RINGBUFX_H
+#ifndef __RINGBUF_H
+#define __RINGBUF_H
 
 #include <stddef.h>
 

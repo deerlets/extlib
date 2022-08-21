@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include "apix.h"
-#include "listx.h"
-#include "atbufx.h"
+#include "list.h"
+#include "atbuf.h"
 
 #define APISINK_NAME_SIZE 64
 #define SINKFD_ADDR_SIZE 64

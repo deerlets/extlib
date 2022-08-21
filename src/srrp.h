@@ -1,5 +1,5 @@
-#ifndef __SRRPX_H // simple request response protocol
-#define __SRRPX_H
+#ifndef __SRRP_H // simple request response protocol
+#define __SRRP_H
 
 #include <stddef.h>
 #include <stdint.h>

@@ -1,5 +1,5 @@
-#ifndef __OPTX_H
-#define __OPTX_H
+#ifndef __OPT_H
+#define __OPT_H
 
 #include <assert.h>
 #include <stdbool.h>

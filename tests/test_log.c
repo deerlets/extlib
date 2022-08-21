@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-#include "logx.h"
+#include "log.h"
 
 static void test_log_level(void **status)
 {

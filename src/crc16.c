@@ -1,4 +1,4 @@
-#include "crc16x.h"
+#include "crc16.h"
 
 /*
  * The crc32 is licensed under the Apache License, Version 2.0, and a copy of the license is included in this file.

@@ -5,8 +5,8 @@
 #include <cmocka.h>
 #include <stdlib.h>
 #include <string.h>
-#include "srrpx.h"
-#include "crc16x.h"
+#include "srrp.h"
+#include "crc16.h"
 
 #define UNIX_ADDR "test_apisink_unix"
 

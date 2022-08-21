@@ -1,4 +1,4 @@
-#include "srrpx.h"
+#include "srrp.h"
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include "stddefx.h"
-#include "crc16x.h"
+#include "crc16.h"
 
 #define SERIAL_MAX_LEN 32
 #define LENGTH_MAX_LEN 32

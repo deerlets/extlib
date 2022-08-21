@@ -10,8 +10,8 @@
 #include <arpa/inet.h>
 #include "apix-posix.h"
 #include "apix-service.h"
-#include "srrpx.h"
-#include "logx.h"
+#include "srrp.h"
+#include "log.h"
 
 #define TCP_ADDR "127.0.0.1:12248"
 

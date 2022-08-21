@@ -5,15 +5,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "stddefx.h"
 #include "apix.h"
 #include "apix-service.h"
-#include "crc16x.h"
-#include "stddefx.h"
-#include "listx.h"
-#include "atbufx.h"
-#include "logx.h"
-#include "srrpx.h"
-#include "jsonx.h"
+#include "crc16.h"
+#include "list.h"
+#include "atbuf.h"
+#include "log.h"
+#include "srrp.h"
+#include "json.h"
 
 static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 {

@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <cmocka.h>
 #include <string.h>
-#include "ringbufx.h"
+#include "ringbuf.h"
 
 static void test_ringbuf(void **status)
 {

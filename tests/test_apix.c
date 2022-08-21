@@ -13,9 +13,9 @@
 #include <arpa/inet.h>
 #include "apix.h"
 #include "apix-posix.h"
-#include "srrpx.h"
-#include "crc16x.h"
-#include "logx.h"
+#include "srrp.h"
+#include "crc16.h"
+#include "log.h"
 
 #define UNIX_ADDR "test_apisink_unix"
 #define TCP_ADDR "127.0.0.1:1224"

@@ -1,5 +1,5 @@
-#ifndef __JSONX_H
-#define __JSONX_H
+#ifndef __JSON_H
+#define __JSON_H
 
 #include <stddef.h>
 

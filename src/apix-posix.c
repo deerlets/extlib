@@ -1,6 +1,6 @@
 #include "apix-inl.h"
 #include "apix-posix.h"
-#include "atbufx.h"
+#include "atbuf.h"
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -10,8 +10,8 @@
 #include <time.h>
 #include <sys/select.h>
 #include "stddefx.h"
-#include "listx.h"
-#include "logx.h"
+#include "list.h"
+#include "log.h"
 
 #if defined __unix__ || defined __linux__ || defined __APPLE__
 

@@ -3,7 +3,7 @@
 #include <setjmp.h>
 #include <cmocka.h>
 #include <string.h>
-#include "atbufx.h"
+#include "atbuf.h"
 
 static void test_atbuf(void **status)
 {

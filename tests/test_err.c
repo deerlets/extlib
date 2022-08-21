@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
-#include "errx.h"
+#include "err.h"
 
 static void test_err(void **status)
 {
