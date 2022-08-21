@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/select.h>
 #include "stddefx.h"
 #include "listx.h"
@@ -15,6 +16,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 static struct unix_sink {
     struct apisink sink;
@@ -23,19 +26,19 @@ static struct unix_sink {
     int nfds;
 } __unix_sink;
 
-static int unix_open(struct apisink *sink, const char *addrname)
+static int unix_open(struct apisink *sink, const char *addr)
 {
     int fd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (fd == -1)
         return -1;
 
     int rc = 0;
-    struct sockaddr_un addr = {0};
-    addr.sun_family = PF_UNIX;
-    strcpy(addr.sun_path, addrname);
+    struct sockaddr_un sockaddr = {0};
+    sockaddr.sun_family = PF_UNIX;
+    snprintf(sockaddr.sun_path, sizeof(sockaddr.sun_path), "%s", addr);
 
-    unlink(addrname);
-    rc = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
+    unlink(addr);
+    rc = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (rc == -1) {
         close(fd);
         return -1;
@@ -50,7 +53,7 @@ static int unix_open(struct apisink *sink, const char *addrname)
     struct sinkfd *sinkfd = sinkfd_new();
     sinkfd->fd = fd;
     sinkfd->listen = 1;
-    strncpy(sinkfd->addr, addrname, sizeof(sinkfd->addr));
+    snprintf(sinkfd->addr, sizeof(sinkfd->addr), "%s", addr);
     sinkfd->sink = sink;
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
@@ -154,11 +157,82 @@ static apisink_ops_t unix_ops = {
     .poll = unix_poll,
 };
 
+static struct unix_sink __tcp_sink;
+
+static int tcp_open(struct apisink *sink, const char *addr)
+{
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
+    if (fd == -1)
+        return -1;
+
+    uint32_t host;
+    uint16_t port;
+    char *tmp = strdup(addr);
+    char *colon = strchr(tmp, ':');
+    *colon = 0;
+    host = inet_addr(tmp);
+    port = htons(atoi(colon + 1));
+    free(tmp);
+
+    int rc = 0;
+    struct sockaddr_in sockaddr = {0};
+    sockaddr.sin_family = PF_INET;
+    sockaddr.sin_addr.s_addr = host;
+    sockaddr.sin_port = port;
+
+    rc = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (rc == -1) {
+        close(fd);
+        return -1;
+    }
+
+    rc = listen(fd, 100);
+    if (rc == -1) {
+        close(fd);
+        return -1;
+    }
+
+    struct sinkfd *sinkfd = sinkfd_new();
+    sinkfd->fd = fd;
+    sinkfd->listen = 1;
+    snprintf(sinkfd->addr, sizeof(sinkfd->addr), "%s", addr);
+    sinkfd->sink = sink;
+    list_add(&sinkfd->node_sink, &sink->sinkfds);
+    list_add(&sinkfd->node_core, &sink->core->sinkfds);
+
+    struct unix_sink *tcp_sink = container_of(sink, struct unix_sink, sink);
+    FD_SET(fd, &tcp_sink->fds);
+    tcp_sink->nfds = fd + 1;
+
+    return fd;
+}
+
+static int tcp_close(struct apisink *sink, int fd)
+{
+    struct sinkfd *sinkfd = find_sinkfd_in_apisink(sink, fd);
+    if (sinkfd == NULL)
+        return -1;
+    close(sinkfd->fd);
+    sinkfd_destroy(sinkfd);
+    return 0;
+}
+
+static apisink_ops_t tcp_ops = {
+    .open = tcp_open,
+    .close = tcp_close,
+    .send = unix_send,
+    .recv = unix_recv,
+    .poll = unix_poll,
+};
+
 int apicore_enable_posix(struct apicore *core)
 {
-    //FD_ZERO(&__unix_sink.fds);
     apisink_init(&__unix_sink.sink, APISINK_UNIX, unix_ops);
     apicore_add_sink(core, &__unix_sink.sink);
+
+    apisink_init(&__tcp_sink.sink, APISINK_TCP, tcp_ops);
+    apicore_add_sink(core, &__tcp_sink.sink);
+
     return 0;
 }
 
@@ -166,6 +240,9 @@ void apicore_disable_posix(struct apicore *core)
 {
     apicore_del_sink(core, &__unix_sink.sink);
     apisink_fini(&__unix_sink.sink);
+
+    apicore_del_sink(core, &__tcp_sink.sink);
+    apisink_fini(&__tcp_sink.sink);
 }
 
 #endif

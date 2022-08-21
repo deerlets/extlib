@@ -4,10 +4,13 @@
 #include <setjmp.h>
 #include <cmocka.h>
 #include <string.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "apix.h"
 #include "apix-posix.h"
 #include "srrpx.h"
@@ -15,6 +18,7 @@
 #include "logx.h"
 
 #define UNIX_ADDR "test_apisink_unix"
+#define TCP_ADDR "127.0.0.1:1224"
 
 static int client_finished = 0;
 static int server_finished = 0;
@@ -134,16 +138,26 @@ static int subscribe_finished = 0;
 
 static void *publish_thread(void *args)
 {
-    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1)
         return NULL;
 
-    int rc = 0;
-    struct sockaddr_un addr = {0};
-    addr.sun_family = PF_UNIX;
-    strcpy(addr.sun_path, UNIX_ADDR);
+    uint32_t host;
+    uint16_t port;
+    char *tmp = strdup(TCP_ADDR);
+    char *colon = strchr(tmp, ':');
+    *colon = 0;
+    host = inet_addr(tmp);
+    port = htons(atoi(colon + 1));
+    free(tmp);
 
-    rc = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+    int rc = 0;
+    struct sockaddr_in sockaddr = {0};
+    sockaddr.sin_family = PF_INET;
+    sockaddr.sin_addr.s_addr = host;
+    sockaddr.sin_port = port;
+
+    rc = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (rc == -1) {
         close(fd);
         return NULL;
@@ -162,16 +176,26 @@ static void *publish_thread(void *args)
 
 static void *subscribe_thread(void *args)
 {
-    int fd = socket(PF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd == -1)
         return NULL;
 
-    int rc = 0;
-    struct sockaddr_un addr = {0};
-    addr.sun_family = PF_UNIX;
-    strcpy(addr.sun_path, UNIX_ADDR);
+    uint32_t host;
+    uint16_t port;
+    char *tmp = strdup(TCP_ADDR);
+    char *colon = strchr(tmp, ':');
+    *colon = 0;
+    host = inet_addr(tmp);
+    port = htons(atoi(colon + 1));
+    free(tmp);
 
-    rc = connect(fd, (struct sockaddr *)&addr, sizeof(addr));
+    int rc = 0;
+    struct sockaddr_in sockaddr = {0};
+    sockaddr.sin_family = PF_INET;
+    sockaddr.sin_addr.s_addr = host;
+    sockaddr.sin_port = port;
+
+    rc = connect(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (rc == -1) {
         close(fd);
         return NULL;
@@ -206,7 +230,7 @@ static void test_api_subscribe_publish(void **status)
 {
     struct apicore *core = apicore_new();
     apicore_enable_posix(core);
-    int fd = apicore_open(core, APISINK_UNIX, UNIX_ADDR);
+    int fd = apicore_open(core, APISINK_TCP, TCP_ADDR);
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);

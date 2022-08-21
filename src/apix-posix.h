@@ -11,6 +11,7 @@ extern "C" {
 #if defined __unix__ || defined __linux__ || defined __APPLE__
 
 #define APISINK_UNIX "apisink_unix"
+#define APISINK_TCP "apisink_tcp"
 
 typedef enum {
     IPC_MODE_PIPE = 0,

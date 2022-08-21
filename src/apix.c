@@ -459,7 +459,7 @@ int apicore_add_sink(struct apicore *core, struct apisink *sink)
             return -1;
     }
 
-    list_add(&core->sinks, &sink->node);
+    list_add(&sink->node, &core->sinks);
     sink->core = core;
     return 0;
 }
