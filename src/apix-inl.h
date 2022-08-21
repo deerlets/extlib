@@ -11,9 +11,6 @@
 #define API_HEADER_SIZE 256
 #define API_TOPIC_SUBSCRIBE_MAX 32
 
-#define APICORE_SERVICE_ADD "/apicore/service/add"
-#define APICORE_SERVICE_DEL "/apicore/service/del"
-
 #define API_REQUEST_ST_NONE 0
 #define API_REQUEST_ST_WAIT_RESPONSE 1
 
@@ -109,6 +106,7 @@ struct api_response {
 
 struct api_service {
     char header[API_HEADER_SIZE];
+    uint64_t ts_alive;
     struct sinkfd *sinkfd;
     struct list_head node;
 };

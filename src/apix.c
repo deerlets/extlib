@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include "apix.h"
+#include "apix-service.h"
 #include "crc16.h"
 #include "stddefx.h"
 #include "listx.h"
@@ -107,6 +108,21 @@ find_topic(struct list_head *topics, const void *header, size_t len)
     return NULL;
 }
 
+static void clear_unalive_serivce(struct apicore *core)
+{
+    struct api_service *pos, *n;
+    list_for_each_entry_safe(pos, n, &core->services, node) {
+        if (time(0) > pos->ts_alive + APICORE_SERVICE_ALIVE_TIMEOUT) {
+            assert(pos->sinkfd->sink->ops.send);
+            pos->sinkfd->sink->ops.send(
+                pos->sinkfd->sink, pos->sinkfd->fd,
+                pos->header, strlen(pos->header));
+            list_del(&pos->node);
+            free(pos);
+        }
+    }
+}
+
 static void service_add_handler(
     struct apicore *core, const char *content, struct sinkfd *sinkfd)
 {
@@ -120,12 +136,13 @@ static void service_add_handler(
         return;
     }
 
-    struct api_service *service = malloc(sizeof(*service));
-    memset(service, 0, sizeof(*service));
-    strcpy(service->header, header);
-    service->sinkfd = sinkfd;
-    INIT_LIST_HEAD(&service->node);
-    list_add(&service->node, &core->services);
+    struct api_service *serv = malloc(sizeof(*serv));
+    memset(serv, 0, sizeof(*serv));
+    snprintf(serv->header, sizeof(serv->header), "%s", header);
+    serv->ts_alive = time(0);
+    serv->sinkfd = sinkfd;
+    INIT_LIST_HEAD(&serv->node);
+    list_add(&serv->node, &core->services);
 
     assert(sinkfd->sink->ops.send);
     sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
@@ -155,6 +172,30 @@ static void service_del_handler(
         free(serv);
         assert(sinkfd->sink->ops.send);
         sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
+    }
+}
+
+static void service_alive_handler(
+    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+{
+    struct json_object *jo = json_object_new(content);
+    char header[256] = {0};
+    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    json_object_delete(jo);
+    if (rc != 0) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        return;
+    }
+
+    struct api_service *serv = find_service(
+        &core->services, header, strlen(header));
+
+    if (serv == NULL || serv->sinkfd != sinkfd) {
+        assert(sinkfd->sink->ops.send);
+        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "SERVICE NOT FOUND", 17);
+    } else {
+        serv->ts_alive = time(0);
     }
 }
 
@@ -303,6 +344,9 @@ static void handle_request(struct apicore *core)
         } else if (strcmp(pos->header, APICORE_SERVICE_DEL) == 0) {
             service_del_handler(core, pos->content, pos->sinkfd);
             api_request_delete(pos);
+        } else if (strcmp(pos->header, APICORE_SERVICE_ALIVE) == 0) {
+            service_alive_handler(core, pos->content, pos->sinkfd);
+            api_request_delete(pos);
         } else {
             struct api_service *serv = find_service(
                 &core->services, pos->header, strlen(pos->header));
@@ -368,6 +412,7 @@ int apicore_poll(struct apicore *core, int timeout)
     list_for_each(pos, &core->sinks)
         cnt++;
 
+    // poll each sink
     struct apisink *pos_sink;
     list_for_each_entry(pos_sink, &core->sinks, node) {
         if (pos_sink->ops.poll(pos_sink, timeout / cnt) != 0) {
@@ -375,6 +420,7 @@ int apicore_poll(struct apicore *core, int timeout)
         }
     }
 
+    // parse each sinkfds
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
         if (autobuf_used(pos_fd->rxbuf)) {
@@ -382,9 +428,13 @@ int apicore_poll(struct apicore *core, int timeout)
         }
     }
 
+    // hander each msg
     handle_request(core);
     handle_response(core);
     handle_topic_msg(core);
+
+    // clear service which is not alive
+    clear_unalive_serivce(core);
 
     return 0;
 }
