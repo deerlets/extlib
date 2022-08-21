@@ -1,6 +1,7 @@
 #include "autobufx.h"
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 struct autobuf {
     char *rawbuf;
@@ -62,22 +63,16 @@ char *autobuf_write_pos(autobuf_t *self)
 
 size_t autobuf_read_advance(autobuf_t *self, size_t len)
 {
+    assert(self->offset_out + len <= self->offset_in);
     self->offset_out += len;
-
-    if (self->offset_out > self->offset_in)
-        self->offset_out = self->offset_in;
-
     autobuf_tidy(self);
     return autobuf_used(self);
 }
 
 size_t autobuf_write_advance(autobuf_t *self, size_t len)
 {
+    assert(self->offset_in + len < self->size);
     self->offset_in += len;
-
-    if (self->offset_in > self->size)
-        self->offset_in = self->size;
-
     autobuf_tidy(self);
     return autobuf_spare(self);
 }
@@ -118,6 +113,7 @@ size_t autobuf_tidy(autobuf_t *self)
         self->offset_out = 0;
     }
 
+    self->rawbuf[self->offset_in] = 0;
     return autobuf_spare(self);
 }
 

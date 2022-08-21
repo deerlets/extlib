@@ -23,12 +23,18 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
         int nr = srrp_read_one_packet(
             autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf), &pac);
         if (nr == -1) {
-            char *tmp = malloc(autobuf_used(sinkfd->rxbuf) + 1);
-            bzero(tmp, autobuf_used(sinkfd->rxbuf) + 1);
-            memcpy(tmp, autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf));
-            LOG_WARN("parse packet failed: %s", tmp);
-            autobuf_read_advance(sinkfd->rxbuf, autobuf_used(sinkfd->rxbuf));
-            continue;
+            if (time(0) < sinkfd->ts_poll_recv + PARSE_PACKET_TIMEOUT / 1000)
+                break;
+
+            LOG_WARN("parse packet failed: %s", autobuf_read_pos(sinkfd->rxbuf));
+            int offset = srrp_next_packet_offset(autobuf_read_pos(sinkfd->rxbuf));
+            if (offset == -1 || offset == 0)
+                autobuf_read_advance(sinkfd->rxbuf, autobuf_used(sinkfd->rxbuf));
+            else {
+                assert(offset < autobuf_used(sinkfd->rxbuf));
+                autobuf_read_advance(sinkfd->rxbuf, offset);
+            }
+            break;
         }
 
         if (pac.leader == SRRP_REQUEST_LEADER) {
@@ -398,7 +404,7 @@ static void handle_topic_msg(struct apicore *core)
             LOG_INFO("poll #: %s%s", pos->header, pos->content);
         } else if (pos->leader == SRRP_UNSUBSCRIBE_LEADER) {
             topic_unsub_handler(core, pos);
-            LOG_INFO("poll -: %s%s", pos->header, pos->content);
+            LOG_INFO("poll %: %s%s", pos->header, pos->content);
         } else {
             topic_pub_handler(core, pos);
             LOG_INFO("poll @: %s%s", pos->header, pos->content);

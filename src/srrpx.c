@@ -1,5 +1,6 @@
 #include "srrpx.h"
 #include <assert.h>
+#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -127,7 +128,7 @@ int /*nr*/ srrp_write_unsubscribe(
 {
     size_t len = strlen(header) + 2/*data*/ + 10;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "-0,$,%.4u:%s{}", (uint32_t)len, header);
+    int nr = snprintf(buf, size, "%%0,$,%.4u:%s{}", (uint32_t)len, header);
     assert(nr == len);
     return len + 1;
 }
@@ -139,4 +140,41 @@ int srrp_write_publish(char *buf, size_t size, const char *header, const char *d
     int nr = snprintf(buf, size, "@0,$,%.4u:%s%s", (uint32_t)len, header, data);
     assert(nr == len);
     return len + 1;
+}
+
+int srrp_next_packet_offset(const char *buf)
+{
+    if (isdigit(buf[1])) {
+        if (buf[0] == SRRP_REQUEST_LEADER ||
+            buf[0] == SRRP_RESPONSE_LEADER ||
+            buf[0] == SRRP_SUBSCRIBE_LEADER ||
+            buf[0] == SRRP_UNSUBSCRIBE_LEADER ||
+            buf[0] == SRRP_PUBLISH_LEADER) {
+            return 0;
+        }
+    }
+
+    char *p = NULL;
+
+    p = strchr(buf, SRRP_REQUEST_LEADER);
+    if (p && p[-1] != SRRP_REQUEST_LEADER && isdigit(p[1]))
+        return p - buf;
+
+    p = strchr(buf, SRRP_RESPONSE_LEADER);
+    if (p && p[-1] != SRRP_RESPONSE_LEADER && isdigit(p[1]))
+        return p - buf;
+
+    p = strchr(buf, SRRP_SUBSCRIBE_LEADER);
+    if (p && p[-1] != SRRP_SUBSCRIBE_LEADER && isdigit(p[1]))
+        return p - buf;
+
+    p = strchr(buf, SRRP_UNSUBSCRIBE_LEADER);
+    if (p && p[-1] != SRRP_UNSUBSCRIBE_LEADER && isdigit(p[1]))
+        return p - buf;
+
+    p = strchr(buf, SRRP_PUBLISH_LEADER);
+    if (p && p[-1] != SRRP_PUBLISH_LEADER && isdigit(p[1]))
+        return p - buf;
+
+    return -1;
 }

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <strings.h>
+#include <time.h>
 #include <sys/select.h>
 #include "stddefx.h"
 #include "listx.h"
@@ -147,6 +148,7 @@ static int unix_poll(struct apisink *sink, int timeout)
                 sinkfd_destroy(pos);
             } else {
                 autobuf_write_advance(pos->rxbuf, nread);
+                pos->ts_poll_recv = time(0);
             }
         }
     }
@@ -372,6 +374,7 @@ static int serial_poll(struct apisink *sink, int timeout)
             sinkfd_destroy(pos);
         } else {
             autobuf_write_advance(pos->rxbuf, nread);
+            pos->ts_poll_recv = time(0);
         }
     }
 

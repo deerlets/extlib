@@ -54,7 +54,7 @@ static void run_apicore()
     assert(rc != -1);
 
     while (1) {
-        apicore_poll(core, 1000);
+        apicore_poll(core, 100);
     }
 
     apicore_close(core, fd);

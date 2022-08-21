@@ -15,6 +15,7 @@
 #define API_REQUEST_ST_WAIT_RESPONSE 1
 
 #define API_REQUEST_TIMEOUT 3000 /*ms*/
+#define PARSE_PACKET_TIMEOUT 1000 /*ms*/
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +60,7 @@ struct sinkfd {
     char addr[SINKFD_ADDR_SIZE];
     autobuf_t *txbuf;
     autobuf_t *rxbuf;
+    uint64_t ts_poll_recv;
     struct apisink *sink;
     struct list_head node_sink;
     struct list_head node_core;

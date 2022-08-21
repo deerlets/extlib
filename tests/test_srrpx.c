@@ -99,7 +99,7 @@ static void test_srrp_subscribe_publish(void **status)
 
     nr = srrp_read_one_packet(unsub, sizeof(unsub), &pac);
     assert_true(nr == strlen(unsub) + 1);
-    assert_true(pac.leader == '-');
+    assert_true(pac.leader == '%');
     assert_true(pac.seat == '$');
     assert_true(pac.len == strlen(unsub));
     assert_true(strcmp(pac.header, "/motor/speed") == 0);

@@ -25,8 +25,8 @@ extern "C" {
  *   - ack: 0/1, if subscriber should acknology or not each msg
  *   - cahce: 0~1024, cache msg if subscriber offline
  *
- * UnSubscribe: -[seqno],[^|0|$],[lenth]:[topic]{}\0<crc16>\0
- *   -0,$,0024:/motor/speed{}\0<crc16>\0
+ * UnSubscribe: %[seqno],[^|0|$],[lenth]:[topic]{}\0<crc16>\0
+ *   %0,$,0024:/motor/speed{}\0<crc16>\0
  *
  * Publish: @[seqno],[^|0|$],[lenth]:[topic]{data}\0<crc16>\0
  *   @0,$,0043:/motor/speed{speed:12,voltage:24}\0<crc16>\0
@@ -35,7 +35,7 @@ extern "C" {
 #define SRRP_REQUEST_LEADER '>'
 #define SRRP_RESPONSE_LEADER '<'
 #define SRRP_SUBSCRIBE_LEADER '#'
-#define SRRP_UNSUBSCRIBE_LEADER '-'
+#define SRRP_UNSUBSCRIBE_LEADER '%'
 #define SRRP_PUBLISH_LEADER '@'
 
 #define SRRP_BEGIN_PACKET '^'
@@ -74,6 +74,8 @@ int /*nr*/ srrp_write_unsubscribe(
     char *buf, size_t size, const char *header);
 int /*nr*/ srrp_write_publish(
     char *buf, size_t size, const char *header, const char *data);
+
+int srrp_next_packet_offset(const char *buf);
 
 #ifdef __cplusplus
 }
