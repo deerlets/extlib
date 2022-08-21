@@ -88,7 +88,7 @@ struct api_request {
     uint64_t ts_create;
     uint64_t ts_send;
 
-    struct sinkfd *sinkfd;
+    int fd;
     uint16_t crc16;
     char leader;
     char header[API_HEADER_SIZE];
@@ -100,7 +100,7 @@ struct api_response {
     void *raw;
     size_t raw_len;
 
-    struct sinkfd *sinkfd;
+    int fd;
     uint16_t crc16_req;
     char leader;
     char header[API_HEADER_SIZE];

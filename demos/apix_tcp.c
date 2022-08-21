@@ -38,7 +38,7 @@ static int test()
     socklen_t lsocklen = sizeof(laddr);
     getsockname(fd, (struct sockaddr*)&laddr, &lsocklen);
 
-    for (int i = 0; i < 3; i++) {
+    while (1) {
         int nr = 0;
         char buf[256];
         char req[256];
@@ -48,7 +48,7 @@ static int test()
         nr = send(fd, req, nreq, 0);
         LOG_INFO("%d, %s", nr, req);
         bzero(buf, sizeof(buf));
-        sleep(1);
+        usleep(50 * 1000);
         nr = recv(fd, buf, sizeof(buf), 0);
         LOG_INFO("%d, %s", nr, buf);
     }

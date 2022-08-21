@@ -48,7 +48,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             req->state = API_REQUEST_ST_NONE;
             req->ts_create = time(0);
             req->ts_send = 0;
-            req->sinkfd = sinkfd;
+            req->fd = sinkfd->fd;
             char *tmp = calloc(1, strlen(pac.header) + strlen(pac.data) + 1);
             memcpy(tmp, pac.header, strlen(pac.header));
             memcpy(tmp + strlen(pac.header), pac.data, strlen(pac.data));
@@ -65,7 +65,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             resp->raw = malloc(nr);
             memcpy(resp->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
             resp->raw_len = nr;
-            resp->sinkfd = sinkfd;
+            resp->fd = sinkfd->fd;
             resp->crc16_req = pac.crc16_req;
             resp->leader = pac.leader;
             snprintf(resp->header, sizeof(resp->header), "%s", pac.header);
@@ -134,15 +134,14 @@ static void clear_unalive_serivce(struct apicore *core)
 }
 
 static void service_add_handler(
-    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+    struct apicore *core, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
     char header[256] = {0};
     int rc = json_get_string(jo, "/header", header, sizeof(header));
     json_object_delete(jo);
     if (rc != 0) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        apicore_send(core, fd, "FAILED", 6);
         return;
     }
 
@@ -150,8 +149,7 @@ static void service_add_handler(
         &core->services, header, strlen(header));
 
     if (serv != NULL) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "DUP SERVICE", 11);
+        apicore_send(core, fd, "DUP SERVICE", 11);
         return;
     }
 
@@ -159,64 +157,57 @@ static void service_add_handler(
     memset(serv, 0, sizeof(*serv));
     snprintf(serv->header, sizeof(serv->header), "%s", header);
     serv->ts_alive = time(0);
-    serv->sinkfd = sinkfd;
+    serv->sinkfd = find_sinkfd_in_apicore(core, fd);
     INIT_LIST_HEAD(&serv->node);
     list_add(&serv->node, &core->services);
 
-    assert(sinkfd->sink->ops.send);
-    sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
+    apicore_send(core, fd, "OK", 2);
 }
 
 static void service_del_handler(
-    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+    struct apicore *core, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
     char header[256] = {0};
     int rc = json_get_string(jo, "/header", header, sizeof(header));
     json_object_delete(jo);
     if (rc != 0) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        apicore_send(core, fd, "FAILED", 6);
         return;
     }
 
     struct api_service *serv = find_service(
         &core->services, header, strlen(header));
 
-    if (serv == NULL || serv->sinkfd != sinkfd) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "SERVICE NOT FOUND", 17);
+    if (serv == NULL || serv->sinkfd->fd != fd) {
+        apicore_send(core, fd, "SERVICE NOT FOUND", 17);
     } else {
         list_del(&serv->node);
         free(serv);
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
+        apicore_send(core, fd, "OK", 2);
     }
 }
 
 static void service_alive_handler(
-    struct apicore *core, const char *content, struct sinkfd *sinkfd)
+    struct apicore *core, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
     char header[256] = {0};
     int rc = json_get_string(jo, "/header", header, sizeof(header));
     json_object_delete(jo);
     if (rc != 0) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "FAILED", 6);
+        apicore_send(core, fd, "FAILED", 6);
         return;
     }
 
     struct api_service *serv = find_service(
         &core->services, header, strlen(header));
 
-    if (serv == NULL || serv->sinkfd != sinkfd) {
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "SERVICE NOT FOUND", 17);
+    if (serv == NULL || serv->sinkfd->fd != fd) {
+        apicore_send(core, fd, "SERVICE NOT FOUND", 17);
     } else {
         serv->ts_alive = time(0);
-        assert(sinkfd->sink->ops.send);
-        sinkfd->sink->ops.send(sinkfd->sink, sinkfd->fd, "OK", 2);
+        apicore_send(core, fd, "OK", 2);
     }
 }
 
@@ -350,9 +341,7 @@ static void handle_request(struct apicore *core)
         if (pos->state == API_REQUEST_ST_WAIT_RESPONSE) {
             if (time(0) < pos->ts_send + API_REQUEST_TIMEOUT / 1000)
                 continue;
-            pos->sinkfd->sink->ops.send(
-                pos->sinkfd->sink, pos->sinkfd->fd,
-                "request timeout", 15);
+            apicore_send(core, pos->fd, "request timeout", 15);
             LOG_DEBUG("request timeout: %s", pos->raw);
             api_request_delete(pos);
             continue;
@@ -360,13 +349,13 @@ static void handle_request(struct apicore *core)
 
         LOG_INFO("poll >: %s%s", pos->header, pos->content);
         if (strcmp(pos->header, APICORE_SERVICE_ADD) == 0) {
-            service_add_handler(core, pos->content, pos->sinkfd);
+            service_add_handler(core, pos->content, pos->fd);
             api_request_delete(pos);
         } else if (strcmp(pos->header, APICORE_SERVICE_DEL) == 0) {
-            service_del_handler(core, pos->content, pos->sinkfd);
+            service_del_handler(core, pos->content, pos->fd);
             api_request_delete(pos);
         } else if (strcmp(pos->header, APICORE_SERVICE_ALIVE) == 0) {
-            service_alive_handler(core, pos->content, pos->sinkfd);
+            service_alive_handler(core, pos->content, pos->fd);
             api_request_delete(pos);
         } else {
             struct api_service *serv = find_service(
@@ -379,9 +368,7 @@ static void handle_request(struct apicore *core)
                 pos->state = API_REQUEST_ST_WAIT_RESPONSE;
                 pos->ts_send = time(0);
             } else {
-                pos->sinkfd->sink->ops.send(
-                    pos->sinkfd->sink, pos->sinkfd->fd,
-                    "SERVICE NOT FOUND", 17);
+                apicore_send(core, pos->fd, "SERVICE NOT FOUND", 17);
                 api_request_delete(pos);
             }
         }
@@ -397,9 +384,7 @@ static void handle_response(struct apicore *core)
         list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
             if (pos_req->crc16 == pos->crc16_req &&
                 strcmp(pos_req->header, pos->header) == 0) {
-                pos_req->sinkfd->sink->ops.send(
-                    pos_req->sinkfd->sink, pos_req->sinkfd->fd,
-                    pos->raw, pos->raw_len);
+                apicore_send(core, pos_req->fd, pos->raw, pos->raw_len);
                 api_request_delete(pos_req);
                 break;
             }
