@@ -10,7 +10,7 @@
 
 #define UNIX_ADDR "test_apisink_unix"
 
-static void test_srrp(void **status)
+static void test_srrp_request_reponse(void **status)
 {
     struct srrp_packet pac = {0};
     int nr = 0;
@@ -74,10 +74,78 @@ static void test_srrp(void **status)
     free(buf);
 }
 
+static void test_srrp_subscribe_publish(void **status)
+{
+    struct srrp_packet pac = {0};
+    int nr = 0;
+
+    char sub[256] = {0};
+    char unsub[256] = {0};
+    char pub[256] = {0};
+
+    srrp_write_subscribe(sub, sizeof(sub), "/motor/speed", "{ack:0,cache:100}");
+    srrp_write_unsubscribe(unsub, sizeof(unsub), "/motor/speed");
+    srrp_write_publish(pub, sizeof(pub), "/motor/speed", "{speed:12,voltage:24}");
+
+    nr = srrp_read_one_packet(sub, sizeof(sub), &pac);
+    assert_true(nr == strlen(sub) + 1);
+    assert_true(pac.leader == '#');
+    assert_true(pac.seat == '$');
+    assert_true(pac.len == strlen(sub));
+    assert_true(strcmp(pac.header, "/motor/speed") == 0);
+    free((void *)pac.header);
+    free((void *)pac.data);
+
+    nr = srrp_read_one_packet(unsub, sizeof(unsub), &pac);
+    assert_true(nr == strlen(unsub) + 1);
+    assert_true(pac.leader == '-');
+    assert_true(pac.seat == '$');
+    assert_true(pac.len == strlen(unsub));
+    assert_true(strcmp(pac.header, "/motor/speed") == 0);
+    free((void *)pac.header);
+    free((void *)pac.data);
+
+    nr = srrp_read_one_packet(pub, sizeof(pub), &pac);
+    assert_true(nr == strlen(pub) + 1);
+    assert_true(pac.leader == '@');
+    assert_true(pac.seat == '$');
+    assert_true(pac.len == strlen(pub));
+    assert_true(strcmp(pac.header, "/motor/speed") == 0);
+    free((void *)pac.header);
+    free((void *)pac.data);
+
+    int buf_len = strlen(sub) + strlen(pub) + 2;
+    char *buf = malloc(buf_len);
+    memset(buf, 0, buf_len);
+    memcpy(buf, sub, strlen(sub));
+    memcpy(buf + strlen(sub) + 1, pub, strlen(pub));
+
+    nr = srrp_read_one_packet(buf, buf_len, &pac);
+    assert_true(nr == strlen(sub) + 1);
+    assert_true(pac.leader == '#');
+    assert_true(pac.seat == '$');
+    assert_true(pac.len == strlen(sub));
+    assert_true(strcmp(pac.header, "/motor/speed") == 0);
+    free((void *)pac.header);
+    free((void *)pac.data);
+
+    nr = srrp_read_one_packet(buf + nr, buf_len - nr, &pac);
+    assert_true(nr == strlen(pub) + 1);
+    assert_true(pac.leader == '@');
+    assert_true(pac.seat == '$');
+    assert_true(pac.len == strlen(pub));
+    assert_true(strcmp(pac.header, "/motor/speed") == 0);
+    free((void *)pac.header);
+    free((void *)pac.data);
+
+    free(buf);
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_srrp),
+        cmocka_unit_test(test_srrp_request_reponse),
+        cmocka_unit_test(test_srrp_subscribe_publish),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
