@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "apix.h"
 #include "crc16.h"
 #include "stddefx.h"
 #include "listx.h"
@@ -175,11 +176,10 @@ static void topic_sub_handler(struct apicore *core, struct api_topic_msg *tmsg)
         list_add(&topic->node, &core->topics);
     }
     assert(topic);
-    topic->sinkfds[topic->nr_sinkfds] = tmsg->sinkfd;
-    topic->nr_sinkfds++;
+    topic->fds[topic->nfds] = tmsg->sinkfd->fd;
+    topic->nfds++;
 
-    assert(tmsg->sinkfd->sink->ops.send);
-    tmsg->sinkfd->sink->ops.send(tmsg->sinkfd->sink, tmsg->sinkfd->fd, "Sub OK", 6);
+    apicore_send(core, tmsg->sinkfd->fd, "Sub OK", 6);
 }
 
 static void topic_unsub_handler(struct apicore *core, struct api_topic_msg *tmsg)
@@ -191,16 +191,15 @@ static void topic_unsub_handler(struct apicore *core, struct api_topic_msg *tmsg
         }
     }
     if (topic) {
-        for (int i = 0; i < topic->nr_sinkfds; i++) {
-            if (topic->sinkfds[i] == tmsg->sinkfd) {
-                topic->sinkfds[i] = topic->sinkfds[topic->nr_sinkfds-1];
-                topic->nr_sinkfds--;
+        for (int i = 0; i < topic->nfds; i++) {
+            if (topic->fds[i] == tmsg->sinkfd->fd) {
+                topic->fds[i] = topic->fds[topic->nfds-1];
+                topic->nfds--;
             }
         }
     }
 
-    assert(tmsg->sinkfd->sink->ops.send);
-    tmsg->sinkfd->sink->ops.send(tmsg->sinkfd->sink, tmsg->sinkfd->fd, "Unsub OK", 8);
+    apicore_send(core, tmsg->sinkfd->fd, "Unsub OK", 8);
 }
 
 static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
@@ -208,14 +207,8 @@ static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
     struct api_topic *topic = find_topic(
         &core->topics, tmsg->header, strlen(tmsg->header));
     if (topic) {
-        for (int i = 0; i < topic->nr_sinkfds; i++) {
-            // FIXME: sinkfd_destroy not delete sinkfd in api_topic,
-            //        shall we just store fd?
-            assert(topic->sinkfds[i]->sink->ops.send);
-            topic->sinkfds[i]->sink->ops.send(
-                topic->sinkfds[i]->sink, topic->sinkfds[i]->fd,
-                tmsg->raw, tmsg->raw_len);
-        }
+        for (int i = 0; i < topic->nfds; i++)
+            apicore_send(core, topic->fds[i], tmsg->raw, tmsg->raw_len);
     } else {
         // do nothing, just drop this msg
         LOG_DEBUG("drop @: %s%s", tmsg->header, tmsg->content);
@@ -354,13 +347,15 @@ static void handle_topic_msg(struct apicore *core)
 {
     struct api_topic_msg *pos, *n;
     list_for_each_entry_safe(pos, n, &core->topic_msgs, node) {
-        LOG_INFO("poll @: %s%s", pos->header, pos->content);
         if (pos->leader == SRRP_SUBSCRIBE_LEADER) {
             topic_sub_handler(core, pos);
+            LOG_INFO("poll #: %s%s", pos->header, pos->content);
         } else if (pos->leader == SRRP_UNSUBSCRIBE_LEADER) {
             topic_unsub_handler(core, pos);
+            LOG_INFO("poll -: %s%s", pos->header, pos->content);
         } else {
             topic_pub_handler(core, pos);
+            LOG_INFO("poll @: %s%s", pos->header, pos->content);
         }
         api_topic_msg_delete(pos);
     }
@@ -414,6 +409,26 @@ int apicore_close(struct apicore *core, int fd)
     if (sinkfd->sink && sinkfd->sink->ops.close)
         sinkfd->sink->ops.close(sinkfd->sink, fd);
     return 0;
+}
+
+int apicore_send(struct apicore *core, int fd, const void *buf, size_t len)
+{
+    struct sinkfd *sinkfd = find_sinkfd_in_apicore(core, fd);
+    if (sinkfd == NULL)
+        return -1;
+    if (sinkfd->sink == NULL || sinkfd->sink->ops.send == NULL)
+        return -1;
+    return sinkfd->sink->ops.send(sinkfd->sink, fd, buf, len);
+}
+
+int apicore_recv(struct apicore *core, int fd, void *buf, size_t size)
+{
+    struct sinkfd *sinkfd = find_sinkfd_in_apicore(core, fd);
+    if (sinkfd == NULL)
+        return -1;
+    if (sinkfd->sink == NULL || sinkfd->sink->ops.recv == NULL)
+        return -1;
+    return sinkfd->sink->ops.recv(sinkfd->sink, fd, buf, size);
 }
 
 void apisink_init(struct apisink *sink, const char *name, apisink_ops_t ops)

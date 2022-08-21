@@ -15,6 +15,8 @@ int apicore_poll(struct apicore *core, int /*ms*/ timeout);
 
 int /*fd*/ apicore_open(struct apicore *core, const char *name, const char *addr);
 int apicore_close(struct apicore *core, int fd);
+int apicore_send(struct apicore *core, int fd, const void *buf, size_t len);
+int apicore_recv(struct apicore *core, int fd, void *buf, size_t size);
 
 #ifdef __cplusplus
 }

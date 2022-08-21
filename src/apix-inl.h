@@ -125,8 +125,8 @@ struct api_topic_msg {
 
 struct api_topic {
     char header[API_HEADER_SIZE];
-    struct sinkfd *sinkfds[API_TOPIC_SUBSCRIBE_MAX];
-    int nr_sinkfds;
+    int fds[API_TOPIC_SUBSCRIBE_MAX];
+    int nfds;
     struct list_head node;
 };
 
