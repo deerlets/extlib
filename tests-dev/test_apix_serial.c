@@ -20,7 +20,7 @@ static void test_api_serial(void **status)
 {
     struct apicore *core = apicore_new();
     apicore_enable_posix(core);
-    int fd = apicore_open(core, APISINK_SERIAL, SERIAL_ADDR);
+    int fd = apicore_open_serial(core, SERIAL_ADDR);
     assert(fd != -1);
 
     struct ioctl_serial_param sp = {

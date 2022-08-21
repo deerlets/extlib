@@ -115,7 +115,7 @@ static void test_api_request_response(void **status)
 {
     struct apicore *core = apicore_new();
     apicore_enable_posix(core);
-    int fd = apicore_open(core, APISINK_UNIX, UNIX_ADDR);
+    int fd = apicore_open_unix(core, UNIX_ADDR);
 
     pthread_t server_pid;
     pthread_create(&server_pid, NULL, server_thread, NULL);
@@ -230,7 +230,7 @@ static void test_api_subscribe_publish(void **status)
 {
     struct apicore *core = apicore_new();
     apicore_enable_posix(core);
-    int fd = apicore_open(core, APISINK_TCP, TCP_ADDR);
+    int fd = apicore_open_tcp(core, TCP_ADDR);
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);

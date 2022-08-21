@@ -12,7 +12,15 @@ extern "C" {
 
 #define APISINK_UNIX "apisink_unix"
 #define APISINK_TCP "apisink_tcp"
+#define APISINK_UDP "apisink_udp"
 #define APISINK_SERIAL "apisink_serial"
+#define APISINK_CAN "apisink_can"
+#define APISINK_SPI "apisink_spi"
+#define APISINK_I2C "apisink_i2c"
+#define APISINK_PIPE "apisink_pipe"
+#define APISINK_SHM "apisink_shm"
+#define APISINK_SHM_MEMFD "apisink_shm_memfd"
+#define APISINK_SHM_FTOK "apisink_shm_ftok"
 
 #define SERIAL_ARG_BAUD_9600 9600
 #define SERIAL_ARG_BAUD_115200 115200
@@ -31,27 +39,9 @@ struct ioctl_serial_param {
     char stop;
 };
 
-typedef enum {
-    IPC_MODE_PIPE = 0,
-    IPC_MODE_SHM,
-    IPC_MODE_SHM_MEMFD,
-    IPC_MODE_SHM_FTOK,
-    IPC_MODE_SERIAL,
-    IPC_MODE_UNIX,
-    IPC_MODE_TCP,
-    IPC_MODE_UDP,
-    IPC_MODE_HTTP,
-} ipc_mode_t;
-
-/*fd*/ int apicore_open_pipe(struct apicore *core, /*out*/ int *txfd, /*out*/ int *rxfd);
-/*fd*/ int apicore_open_shm(struct apicore *core, const char *txname, const char *rxname);
-/*fd*/ int apicore_open_shm_memfd(struct apicore *core, /*out*/ int *txfd, /*out*/ int *rxfd);
-/*fd*/ int apicore_open_shm_ftok(struct apicore *core, const char *txfile, const char *rxfile);
-/*fd*/ int apicore_open_serial(struct apicore *core, const char *addr);
-/*fd*/ int apicore_open_unix(struct apicore *core, const char *name);
-/*fd*/ int apicore_open_tcp(struct apicore *core, uint32_t ipaddr, uint16_t port);
-/*fd*/ int apicore_open_udp(struct apicore *core, uint32_t ipaddr, uint16_t port);
-/*fd*/ int apicore_open_http(struct apicore *core, uint32_t ipaddr, uint16_t port);
+#define apicore_open_unix(core, addr) apicore_open(core, APISINK_UNIX, addr)
+#define apicore_open_tcp(core, addr) apicore_open(core, APISINK_TCP, addr)
+#define apicore_open_serial(core, addr) apicore_open(core, APISINK_SERIAL, addr)
 
 int apicore_enable_posix(struct apicore *core);
 void apicore_disable_posix(struct apicore *core);
