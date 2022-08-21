@@ -67,6 +67,7 @@ size_t autobuf_read_advance(autobuf_t *self, size_t len)
     if (self->offset_out > self->offset_in)
         self->offset_out = self->offset_in;
 
+    autobuf_tidy(self);
     return autobuf_used(self);
 }
 
@@ -77,6 +78,7 @@ size_t autobuf_write_advance(autobuf_t *self, size_t len)
     if (self->offset_in > self->size)
         self->offset_in = self->size;
 
+    autobuf_tidy(self);
     return autobuf_spare(self);
 }
 

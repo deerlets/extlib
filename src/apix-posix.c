@@ -137,7 +137,6 @@ static int unix_poll(struct apisink *sink, int timeout)
                 unix_sink->nfds = newfd + 1;
             FD_SET(newfd, &unix_sink->fds);
         } else /* recv */ {
-            autobuf_tidy(pos->rxbuf);
             int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
                              autobuf_spare(pos->rxbuf), 0);
             if (nread == -1) {
@@ -363,7 +362,6 @@ static int serial_poll(struct apisink *sink, int timeout)
 
         nr_recv_fds--;
 
-        autobuf_tidy(pos->rxbuf);
         int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
                             autobuf_spare(pos->rxbuf), 0);
         if (nread == -1) {
