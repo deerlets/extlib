@@ -10,7 +10,7 @@
 #include "crc16x.h"
 #include "stddefx.h"
 #include "listx.h"
-#include "autobufx.h"
+#include "atbufx.h"
 #include "logx.h"
 #include "srrpx.h"
 #include "jsonx.h"
@@ -19,20 +19,20 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 {
     struct srrp_packet pac = {0};
 
-    while (autobuf_used(sinkfd->rxbuf)) {
+    while (atbuf_used(sinkfd->rxbuf)) {
         int nr = srrp_read_one_packet(
-            autobuf_read_pos(sinkfd->rxbuf), autobuf_used(sinkfd->rxbuf), &pac);
+            atbuf_read_pos(sinkfd->rxbuf), atbuf_used(sinkfd->rxbuf), &pac);
         if (nr == -1) {
             if (time(0) < sinkfd->ts_poll_recv + PARSE_PACKET_TIMEOUT / 1000)
                 break;
 
-            LOG_WARN("parse packet failed: %s", autobuf_read_pos(sinkfd->rxbuf));
-            int offset = srrp_next_packet_offset(autobuf_read_pos(sinkfd->rxbuf));
+            LOG_WARN("parse packet failed: %s", atbuf_read_pos(sinkfd->rxbuf));
+            int offset = srrp_next_packet_offset(atbuf_read_pos(sinkfd->rxbuf));
             if (offset == -1 || offset == 0)
-                autobuf_read_advance(sinkfd->rxbuf, autobuf_used(sinkfd->rxbuf));
+                atbuf_read_advance(sinkfd->rxbuf, atbuf_used(sinkfd->rxbuf));
             else {
-                assert(offset < autobuf_used(sinkfd->rxbuf));
-                autobuf_read_advance(sinkfd->rxbuf, offset);
+                assert(offset < atbuf_used(sinkfd->rxbuf));
+                atbuf_read_advance(sinkfd->rxbuf, offset);
             }
             break;
         }
@@ -41,7 +41,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             struct api_request *req = malloc(sizeof(*req));
             memset(req, 0, sizeof(*req));
             req->raw = malloc(nr);
-            memcpy(req->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            memcpy(req->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
             req->raw_len = nr;
             req->state = API_REQUEST_ST_NONE;
             req->ts_create = time(0);
@@ -61,7 +61,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             struct api_response *resp = malloc(sizeof(*resp));
             memset(resp, 0, sizeof(*resp));
             resp->raw = malloc(nr);
-            memcpy(resp->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            memcpy(resp->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
             resp->raw_len = nr;
             resp->sinkfd = sinkfd;
             resp->crc16_req = pac.crc16_req;
@@ -76,7 +76,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             struct api_topic_msg *tmsg = malloc(sizeof(*tmsg));
             memset(tmsg, 0, sizeof(*tmsg));
             tmsg->raw = malloc(nr);
-            memcpy(tmsg->raw, autobuf_read_pos(sinkfd->rxbuf), nr);
+            memcpy(tmsg->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
             tmsg->raw_len = nr;
             tmsg->sinkfd = sinkfd;
             tmsg->leader = pac.leader;
@@ -88,7 +88,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 
         free(pac.header);
         free(pac.data);
-        autobuf_read_advance(sinkfd->rxbuf, nr);
+        atbuf_read_advance(sinkfd->rxbuf, nr);
     }
 }
 
@@ -431,7 +431,7 @@ int apicore_poll(struct apicore *core, int timeout)
     // parse each sinkfds
     struct sinkfd *pos_fd;
     list_for_each_entry(pos_fd, &core->sinkfds, node_core) {
-        if (autobuf_used(pos_fd->rxbuf)) {
+        if (atbuf_used(pos_fd->rxbuf)) {
             parse_packet(core, pos_fd);
         }
     }
@@ -545,8 +545,8 @@ struct sinkfd *sinkfd_new()
     memset(sinkfd, 0, sizeof(*sinkfd));
     sinkfd->fd = 0;
     sinkfd->listen = 0;
-    sinkfd->txbuf = autobuf_new(0);
-    sinkfd->rxbuf = autobuf_new(0);
+    sinkfd->txbuf = atbuf_new(0);
+    sinkfd->rxbuf = atbuf_new(0);
     sinkfd->sink = NULL;
     INIT_LIST_HEAD(&sinkfd->node_sink);
     INIT_LIST_HEAD(&sinkfd->node_core);
@@ -556,8 +556,8 @@ struct sinkfd *sinkfd_new()
 void sinkfd_destroy(struct sinkfd *sinkfd)
 {
     sinkfd->fd = 0;
-    autobuf_delete(sinkfd->txbuf);
-    autobuf_delete(sinkfd->rxbuf);
+    atbuf_delete(sinkfd->txbuf);
+    atbuf_delete(sinkfd->rxbuf);
     sinkfd->sink = NULL;
     list_del_init(&sinkfd->node_sink);
     list_del_init(&sinkfd->node_core);

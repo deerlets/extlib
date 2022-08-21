@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "apix.h"
 #include "listx.h"
-#include "autobufx.h"
+#include "atbufx.h"
 
 #define APISINK_NAME_SIZE 64
 #define SINKFD_ADDR_SIZE 64
@@ -58,8 +58,8 @@ struct sinkfd {
     int fd;
     int listen;
     char addr[SINKFD_ADDR_SIZE];
-    autobuf_t *txbuf;
-    autobuf_t *rxbuf;
+    atbuf_t *txbuf;
+    atbuf_t *rxbuf;
     uint64_t ts_poll_recv;
     struct apisink *sink;
     struct list_head node_sink;

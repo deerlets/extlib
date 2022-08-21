@@ -16,9 +16,9 @@ add_executable(test-ringbufx test_ringbufx.c)
 target_link_libraries(test-ringbufx cmocka cx)
 add_test(test-ringbufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ringbufx)
 
-add_executable(test-autobufx test_autobufx.c)
-target_link_libraries(test-autobufx cmocka cx)
-add_test(test-autobufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-autobufx)
+add_executable(test-atbufx test_atbufx.c)
+target_link_libraries(test-atbufx cmocka cx)
+add_test(test-atbufx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-atbufx)
 
 add_executable(test-srrpx test_srrpx.c)
 target_link_libraries(test-srrpx cmocka cx pthread)

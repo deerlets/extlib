@@ -1,6 +1,6 @@
 #include "apix-inl.h"
 #include "apix-posix.h"
-#include "autobufx.h"
+#include "atbufx.h"
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -138,8 +138,8 @@ static int unix_poll(struct apisink *sink, int timeout)
                 unix_sink->nfds = newfd + 1;
             FD_SET(newfd, &unix_sink->fds);
         } else /* recv */ {
-            int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
-                             autobuf_spare(pos->rxbuf), 0);
+            int nread = recv(pos->fd, atbuf_write_pos(pos->rxbuf),
+                             atbuf_spare(pos->rxbuf), 0);
             if (nread == -1) {
                 LOG_DEBUG("[recv] (%d) %s", errno, strerror(errno));
                 sinkfd_destroy(pos);
@@ -147,7 +147,7 @@ static int unix_poll(struct apisink *sink, int timeout)
                 LOG_DEBUG("[recv] (%d) finished");
                 sinkfd_destroy(pos);
             } else {
-                autobuf_write_advance(pos->rxbuf, nread);
+                atbuf_write_advance(pos->rxbuf, nread);
                 pos->ts_poll_recv = time(0);
             }
         }
@@ -364,8 +364,8 @@ static int serial_poll(struct apisink *sink, int timeout)
 
         nr_recv_fds--;
 
-        int nread = read(pos->fd, autobuf_write_pos(pos->rxbuf),
-                         autobuf_spare(pos->rxbuf));
+        int nread = read(pos->fd, atbuf_write_pos(pos->rxbuf),
+                         atbuf_spare(pos->rxbuf));
         if (nread == -1) {
             LOG_DEBUG("[read] (%d) %s", errno, strerror(errno));
             sinkfd_destroy(pos);
@@ -373,7 +373,7 @@ static int serial_poll(struct apisink *sink, int timeout)
             LOG_DEBUG("[read] (%d) finished");
             sinkfd_destroy(pos);
         } else {
-            autobuf_write_advance(pos->rxbuf, nread);
+            atbuf_write_advance(pos->rxbuf, nread);
             pos->ts_poll_recv = time(0);
         }
     }
