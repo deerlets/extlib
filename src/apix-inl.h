@@ -32,6 +32,7 @@ struct apisink;
 typedef struct apisink_ops {
     int (*open)(struct apisink *sink, const char *addr);
     int (*close)(struct apisink *sink, int fd);
+    int (*ioctl)(struct apisink *sink, int fd, unsigned int cmd, unsigned long arg);
     int (*send)(struct apisink *sink, int fd, const void *buf, size_t len);
     int (*recv)(struct apisink *sink, int fd, void *buf, size_t size);
     int (*poll)(struct apisink *sink, int timeout);

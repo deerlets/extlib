@@ -12,6 +12,24 @@ extern "C" {
 
 #define APISINK_UNIX "apisink_unix"
 #define APISINK_TCP "apisink_tcp"
+#define APISINK_SERIAL "apisink_serial"
+
+#define SERIAL_ARG_BAUD_9600 9600
+#define SERIAL_ARG_BAUD_115200 115200
+#define SERIAL_ARG_BITS_7 7
+#define SERIAL_ARG_BITS_8 8
+#define SERIAL_ARG_PARITY_O 'O'
+#define SERIAL_ARG_PARITY_E 'E'
+#define SERIAL_ARG_PARITY_N 'N'
+#define SERIAL_ARG_STOP_1 1
+#define SERIAL_ARG_STOP_2 2
+
+struct ioctl_serial_param {
+    uint32_t baud;
+    char bits;
+    char parity;
+    char stop;
+};
 
 typedef enum {
     IPC_MODE_PIPE = 0,

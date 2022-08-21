@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <strings.h>
 #include <sys/select.h>
 #include "stddefx.h"
 #include "listx.h"
@@ -18,6 +19,11 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#include <fcntl.h>
+#include <termios.h>
+
+// unix domain socket
 
 static struct unix_sink {
     struct apisink sink;
@@ -152,10 +158,13 @@ static int unix_poll(struct apisink *sink, int timeout)
 static apisink_ops_t unix_ops = {
     .open = unix_open,
     .close = unix_close,
+    .ioctl = NULL,
     .send = unix_send,
     .recv = unix_recv,
     .poll = unix_poll,
 };
+
+// tcp
 
 static struct unix_sink __tcp_sink;
 
@@ -220,9 +229,164 @@ static int tcp_close(struct apisink *sink, int fd)
 static apisink_ops_t tcp_ops = {
     .open = tcp_open,
     .close = tcp_close,
+    .ioctl = NULL,
     .send = unix_send,
     .recv = unix_recv,
     .poll = unix_poll,
+};
+
+// serial
+
+static struct unix_sink __serial_sink;
+
+static int serial_open(struct apisink *sink, const char *addr)
+{
+    int fd = open(addr, O_RDWR | O_NOCTTY | O_NDELAY);
+    if (fd == -1) return -1;
+
+    struct sinkfd *sinkfd = sinkfd_new();
+    sinkfd->fd = fd;
+    snprintf(sinkfd->addr, sizeof(sinkfd->addr), "%s", addr);
+    sinkfd->sink = sink;
+    list_add(&sinkfd->node_sink, &sink->sinkfds);
+    list_add(&sinkfd->node_core, &sink->core->sinkfds);
+
+    struct unix_sink *serial_sink = container_of(sink, struct unix_sink, sink);
+    FD_SET(fd, &serial_sink->fds);
+    serial_sink->nfds = fd + 1;
+
+    return fd;
+}
+
+static int serial_close(struct apisink *sink, int fd)
+{
+    struct sinkfd *sinkfd = find_sinkfd_in_apisink(sink, fd);
+    if (sinkfd == NULL)
+        return -1;
+    close(sinkfd->fd);
+    sinkfd_destroy(sinkfd);
+    return 0;
+}
+
+static int
+serial_ioctl(struct apisink *sink, int fd, unsigned int cmd, unsigned long arg)
+{
+    struct ioctl_serial_param *sp = (struct ioctl_serial_param *)arg;
+    struct termios newtio, oldtio;
+
+    if (tcgetattr(fd, &oldtio) != 0)
+        return -1;
+
+    bzero(&newtio, sizeof(newtio));
+    newtio.c_cflag |= (CLOCAL | CREAD);
+    newtio.c_cflag &= ~CSIZE;
+
+    if (sp->baud == SERIAL_ARG_BAUD_9600) {
+        cfsetispeed(&newtio, B9600);
+    } else if (sp->baud == SERIAL_ARG_BAUD_115200) {
+        cfsetispeed(&newtio, B115200);
+    } else {
+        return -1;
+    }
+    if (sp->bits == SERIAL_ARG_BITS_7) {
+        newtio.c_cflag |= CS7;
+    } else if (sp->bits == SERIAL_ARG_BITS_8) {
+        newtio.c_cflag |= CS8;
+    } else {
+        return -1;
+    }
+    if (sp->parity == SERIAL_ARG_PARITY_O) {
+        newtio.c_cflag |= PARENB;
+        newtio.c_cflag |= PARODD;
+        newtio.c_cflag |= (INPCK | ISTRIP);
+    } else if (sp->parity == SERIAL_ARG_PARITY_E) {
+        newtio.c_cflag |= PARENB;
+        newtio.c_cflag &= ~PARODD;
+        newtio.c_cflag |= (INPCK | ISTRIP);
+    } else if (sp->parity == SERIAL_ARG_PARITY_N) {
+        newtio.c_cflag &= ~PARENB;
+    } else {
+        return -1;
+    }
+    if (sp->stop == SERIAL_ARG_STOP_1) {
+        newtio.c_cflag &= ~CSTOPB;
+    } else if (sp->stop == SERIAL_ARG_STOP_2) {
+        newtio.c_cflag |= CSTOPB;
+    } else {
+        return -1;
+    }
+
+    newtio.c_cc[VTIME] = 0;
+    newtio.c_cc[VMIN] = 0;
+    tcflush(fd, TCIFLUSH);
+
+    if (tcsetattr(fd, TCSANOW, &newtio) != 0)
+        return -1;
+
+    return 0;
+}
+
+static int serial_send(struct apisink *sink, int fd, const void *buf, size_t len)
+{
+    UNUSED(sink);
+    return write(fd, buf, len);
+}
+
+static int serial_recv(struct apisink *sink, int fd, void *buf, size_t size)
+{
+    UNUSED(sink);
+    return read(fd, buf, size);
+}
+
+static int serial_poll(struct apisink *sink, int timeout)
+{
+    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
+
+    struct timeval tv = { timeout / 1000, timeout % 1000 * 1000 };
+    fd_set recvfds;
+    memcpy(&recvfds, &unix_sink->fds, sizeof(recvfds));
+
+    int nr_recv_fds = select(unix_sink->nfds, &recvfds, NULL, NULL, &tv);
+    if (nr_recv_fds == -1) {
+        if (errno == EINTR)
+            return 0;
+        LOG_ERROR("[select] (%d) %s", errno, strerror(errno));
+        return -1;
+    }
+
+    struct sinkfd *pos, *n;
+    list_for_each_entry_safe(pos, n, &sink->sinkfds, node_sink) {
+        if (nr_recv_fds == 0) break;
+
+        if (!FD_ISSET(pos->fd, &recvfds))
+            continue;
+
+        nr_recv_fds--;
+
+        autobuf_tidy(pos->rxbuf);
+        int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
+                            autobuf_spare(pos->rxbuf), 0);
+        if (nread == -1) {
+            LOG_DEBUG("[recv] (%d) %s", errno, strerror(errno));
+            sinkfd_destroy(pos);
+        } else if (nread == 0) {
+            LOG_DEBUG("[recv] (%d) finished");
+            sinkfd_destroy(pos);
+        } else {
+            autobuf_write_advance(pos->rxbuf, nread);
+        }
+    }
+
+    return 0;
+}
+
+static apisink_ops_t serial_ops = {
+    .open = serial_open,
+    .close = serial_close,
+    .ioctl = serial_ioctl,
+    .send = serial_send,
+    .recv = serial_recv,
+    .poll = serial_poll,
 };
 
 int apicore_enable_posix(struct apicore *core)
@@ -232,6 +396,9 @@ int apicore_enable_posix(struct apicore *core)
 
     apisink_init(&__tcp_sink.sink, APISINK_TCP, tcp_ops);
     apicore_add_sink(core, &__tcp_sink.sink);
+
+    apisink_init(&__serial_sink.sink, APISINK_SERIAL, serial_ops);
+    apicore_add_sink(core, &__serial_sink.sink);
 
     return 0;
 }
@@ -243,6 +410,9 @@ void apicore_disable_posix(struct apicore *core)
 
     apicore_del_sink(core, &__tcp_sink.sink);
     apisink_fini(&__tcp_sink.sink);
+
+    apicore_del_sink(core, &__serial_sink.sink);
+    apisink_fini(&__serial_sink.sink);
 }
 
 #endif

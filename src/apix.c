@@ -411,6 +411,16 @@ int apicore_close(struct apicore *core, int fd)
     return 0;
 }
 
+int apicore_ioctl(struct apicore *core, int fd, unsigned int cmd, unsigned long arg)
+{
+    struct sinkfd *sinkfd = find_sinkfd_in_apicore(core, fd);
+    if (sinkfd == NULL)
+        return -1;
+    if (sinkfd->sink == NULL || sinkfd->sink->ops.ioctl == NULL)
+        return -1;
+    return sinkfd->sink->ops.ioctl(sinkfd->sink, fd, cmd, arg);
+}
+
 int apicore_send(struct apicore *core, int fd, const void *buf, size_t len)
 {
     struct sinkfd *sinkfd = find_sinkfd_in_apicore(core, fd);
