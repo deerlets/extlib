@@ -54,6 +54,7 @@ static void test_api_serial(void **status)
 
 int main(void)
 {
+    log_set_level(LOG_LV_DEBUG);
     test_api_serial(NULL);
     return 0;
 }

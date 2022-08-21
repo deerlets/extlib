@@ -65,6 +65,7 @@ static void run_apicore()
 
 int main(int argc, char *argv[])
 {
+    log_set_level(LOG_LV_DEBUG);
     opt_init_from_arg(opttab, argc, argv);
     run_apicore();
     return 0;

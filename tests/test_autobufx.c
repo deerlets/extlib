@@ -30,17 +30,16 @@ static void test_autobuf(void **status)
     for (int i = 0; i < read_time; i++)
         nread = autobuf_read(buf, msg, sizeof(hello_msg));
     assert_true(autobuf_size(buf) == AUTOBUF_DEFAULT_SIZE);
-    assert_true(autobuf_garbage(buf) == sizeof(hello_msg)*read_time);
+    //assert_true(autobuf_garbage(buf) == sizeof(hello_msg)*read_time);
     assert_true(autobuf_used(buf) == sizeof(hello_msg)*(write_time-read_time));
-    assert_true(autobuf_spare(buf) == AUTOBUF_DEFAULT_SIZE - sizeof(hello_msg)*write_time);
+    //assert_true(autobuf_spare(buf) == AUTOBUF_DEFAULT_SIZE - sizeof(hello_msg)*write_time);
     assert_true(memcmp(hello_msg, msg, strlen(hello_msg)) == 0);
     msg[nread] = 0;
 
-    autobuf_tidy(buf);
     assert_true(autobuf_size(buf) == AUTOBUF_DEFAULT_SIZE);
-    assert_true(autobuf_garbage(buf) == 0);
+    //assert_true(autobuf_garbage(buf) == 0);
     assert_true(autobuf_used(buf) == sizeof(hello_msg)*(write_time-read_time));
-    assert_true(autobuf_spare(buf) == AUTOBUF_DEFAULT_SIZE - sizeof(hello_msg)*(write_time-read_time));
+    //assert_true(autobuf_spare(buf) == AUTOBUF_DEFAULT_SIZE - sizeof(hello_msg)*(write_time-read_time));
 
     autobuf_delete(buf);
 }

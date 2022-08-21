@@ -362,13 +362,13 @@ static int serial_poll(struct apisink *sink, int timeout)
 
         nr_recv_fds--;
 
-        int nread = recv(pos->fd, autobuf_write_pos(pos->rxbuf),
-                            autobuf_spare(pos->rxbuf), 0);
+        int nread = read(pos->fd, autobuf_write_pos(pos->rxbuf),
+                         autobuf_spare(pos->rxbuf));
         if (nread == -1) {
-            LOG_DEBUG("[recv] (%d) %s", errno, strerror(errno));
+            LOG_DEBUG("[read] (%d) %s", errno, strerror(errno));
             sinkfd_destroy(pos);
         } else if (nread == 0) {
-            LOG_DEBUG("[recv] (%d) finished");
+            LOG_DEBUG("[read] (%d) finished");
             sinkfd_destroy(pos);
         } else {
             autobuf_write_advance(pos->rxbuf, nread);
