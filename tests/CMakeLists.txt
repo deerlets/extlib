@@ -32,6 +32,10 @@ add_executable(test-apix test_apix.c)
 target_link_libraries(test-apix cmocka cx pthread)
 add_test(test-apix ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-apix)
 
+add_executable(test-svcx test_svcx.c)
+target_link_libraries(test-svcx cmocka cx pthread)
+add_test(test-svcx ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-svcx)
+
 if (BUILD_POSIX)
 add_executable(test-task test_task.c)
 target_link_libraries(test-task cmocka cx)
