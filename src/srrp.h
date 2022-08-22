@@ -64,7 +64,7 @@ struct srrp_packet {
 };
 
 // the retval imply that the caller should free it
-struct srrp_packet *srrp_read_one_packet(const char *buf, size_t size);
+struct srrp_packet *srrp_read_one_packet(const char *buf);
 void srrp_free(struct srrp_packet *pac);
 
 int /*nr*/ srrp_write_request(

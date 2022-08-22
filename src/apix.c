@@ -20,8 +20,7 @@
 static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 {
     while (atbuf_used(sinkfd->rxbuf)) {
-        struct srrp_packet *pac = srrp_read_one_packet(
-            atbuf_read_pos(sinkfd->rxbuf), atbuf_used(sinkfd->rxbuf));
+        struct srrp_packet *pac = srrp_read_one_packet(atbuf_read_pos(sinkfd->rxbuf));
         if (pac == NULL) {
             if (time(0) < sinkfd->ts_poll_recv.tv_sec + PARSE_PACKET_TIMEOUT / 1000)
                 break;

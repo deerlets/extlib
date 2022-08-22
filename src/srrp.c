@@ -12,7 +12,7 @@
 #define LENGTH_MAX_LEN 32
 #define REQID_MAX_LEN 32
 
-struct srrp_packet *__srrp_read_one_request(const char *buf, size_t size)
+struct srrp_packet *__srrp_read_one_request(const char *buf)
 {
     assert(buf[0] == SRRP_REQUEST_LEADER);
 
@@ -51,7 +51,7 @@ struct srrp_packet *__srrp_read_one_request(const char *buf, size_t size)
     return pac;
 }
 
-struct srrp_packet *__srrp_read_one_response(const char *buf, size_t size)
+struct srrp_packet *__srrp_read_one_response(const char *buf)
 {
     assert(buf[0] == SRRP_RESPONSE_LEADER);
 
@@ -92,7 +92,7 @@ struct srrp_packet *__srrp_read_one_response(const char *buf, size_t size)
     return pac;
 }
 
-struct srrp_packet *__srrp_read_one_subpub(const char *buf, size_t size)
+struct srrp_packet *__srrp_read_one_subpub(const char *buf)
 {
     assert(buf[0] == SRRP_SUBSCRIBE_LEADER ||
            buf[0] == SRRP_UNSUBSCRIBE_LEADER ||
@@ -131,18 +131,18 @@ struct srrp_packet *__srrp_read_one_subpub(const char *buf, size_t size)
     return pac;
 }
 
-struct srrp_packet *srrp_read_one_packet(const char *buf, size_t size)
+struct srrp_packet *srrp_read_one_packet(const char *buf)
 {
     const char *leader = buf;
 
     if (*leader == SRRP_REQUEST_LEADER)
-        return __srrp_read_one_request(buf, size);
+        return __srrp_read_one_request(buf);
     else if (*leader == SRRP_RESPONSE_LEADER)
-        return __srrp_read_one_response(buf, size);
+        return __srrp_read_one_response(buf);
     else if (*leader == SRRP_SUBSCRIBE_LEADER ||
              *leader == SRRP_UNSUBSCRIBE_LEADER ||
              *leader == SRRP_PUBLISH_LEADER)
-        return __srrp_read_one_subpub(buf, size);
+        return __srrp_read_one_subpub(buf);
 
     return NULL;
 }

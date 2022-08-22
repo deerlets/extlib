@@ -95,7 +95,7 @@ static void *server_thread(void *args)
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
     struct srrp_packet *pac;
-    pac = srrp_read_one_packet(buf, sizeof(buf));
+    pac = srrp_read_one_packet(buf);
     uint16_t crc = crc16(pac->header, pac->header_len);
     crc = crc16_crc(crc, pac->data, pac->data_len);
     srrp_write_response(

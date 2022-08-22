@@ -21,7 +21,7 @@ static void test_srrp_request_reponse(void **status)
         req, sizeof(req), 0x8888, "/hello/x",
         "{name:'yon',age:'18',equip:['hat','shoes']}");
 
-    pac = srrp_read_one_packet(req, sizeof(req));
+    pac = srrp_read_one_packet(req);
     assert_true(pac);
     assert_true(pac->len == strlen(req) + 1);
     assert_true(pac->leader == '>');
@@ -36,7 +36,7 @@ static void test_srrp_request_reponse(void **status)
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(resp, sizeof(resp));
+    pac = srrp_read_one_packet(resp);
     assert_true(pac);
     assert_true(pac->len == strlen(resp) + 1);
     assert_true(pac->leader == '<');
@@ -52,7 +52,7 @@ static void test_srrp_request_reponse(void **status)
     memcpy(buf, req, strlen(req));
     memcpy(buf + strlen(req) + 1, resp, strlen(resp));
 
-    pac = srrp_read_one_packet(buf, buf_len);
+    pac = srrp_read_one_packet(buf);
     assert_true(pac);
     assert_true(pac->len == strlen(req) + 1);
     assert_true(pac->leader == '>');
@@ -62,7 +62,7 @@ static void test_srrp_request_reponse(void **status)
     int len = pac->len;
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(buf + len, buf_len - len);
+    pac = srrp_read_one_packet(buf + len);
     assert_true(pac);
     assert_true(pac->len == strlen(resp) + 1);
     assert_true(pac->leader == '<');
@@ -87,7 +87,7 @@ static void test_srrp_subscribe_publish(void **status)
     srrp_write_unsubscribe(unsub, sizeof(unsub), "/motor/speed");
     srrp_write_publish(pub, sizeof(pub), "/motor/speed", "{speed:12,voltage:24}");
 
-    pac = srrp_read_one_packet(sub, sizeof(sub));
+    pac = srrp_read_one_packet(sub);
     assert_true(pac);
     assert_true(pac->len == strlen(sub) + 1);
     assert_true(pac->leader == '#');
@@ -95,7 +95,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(memcmp(pac->header, "/motor/speed", pac->header_len) == 0);
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(unsub, sizeof(unsub));
+    pac = srrp_read_one_packet(unsub);
     assert_true(pac);
     assert_true(pac->len == strlen(unsub) + 1);
     assert_true(pac->leader == '%');
@@ -103,7 +103,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(memcmp(pac->header, "/motor/speed", pac->header_len) == 0);
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(pub, sizeof(pub));
+    pac = srrp_read_one_packet(pub);
     assert_true(pac);
     assert_true(pac->len == strlen(pub) + 1);
     assert_true(pac->leader == '@');
@@ -117,7 +117,7 @@ static void test_srrp_subscribe_publish(void **status)
     memcpy(buf + strlen(sub) + 1, pub, strlen(pub));
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(buf, buf_len);
+    pac = srrp_read_one_packet(buf);
     assert_true(pac);
     assert_true(pac->len == strlen(sub) + 1);
     assert_true(pac->leader == '#');
@@ -126,7 +126,7 @@ static void test_srrp_subscribe_publish(void **status)
     int len = pac->len;
     srrp_free(pac);
 
-    pac = srrp_read_one_packet(buf + len, buf_len - len);
+    pac = srrp_read_one_packet(buf + len);
     assert_true(pac);
     assert_true(pac->len == strlen(pub) + 1);
     assert_true(pac->leader == '@');
