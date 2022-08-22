@@ -58,8 +58,10 @@ struct srrp_packet {
     uint16_t reqid;
     uint16_t len;
     uint16_t reqcrc16; // reqcrc16 when leader is '<'
-    char *header;
-    char *data;
+    const char *header;
+    size_t header_len;
+    const char *data;
+    size_t data_len;
 };
 
 int /*nr*/ srrp_read_one_packet(

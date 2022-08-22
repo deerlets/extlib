@@ -28,9 +28,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
     assert_true(pac.reqid == 0x8888);
-    assert_true(strcmp(pac.header, "/hello/x") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/hello/x", pac.header_len) == 0);
 
     uint16_t crc = crc16(pac.header, strlen(pac.header));
     crc = crc16_crc(crc, pac.data, strlen(pac.data));
@@ -45,9 +43,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(pac.len == nr);
     assert_true(pac.reqid == 0x8888);
     assert_true(pac.reqcrc16 == crc);
-    assert_true(strcmp(pac.header, "/hello/x") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/hello/x", pac.header_len) == 0);
 
     int buf_len = strlen(req) + strlen(resp) + 2;
     char *buf = malloc(buf_len);
@@ -61,9 +57,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
     assert_true(pac.reqid == 0x8888);
-    assert_true(strcmp(pac.header, "/hello/x") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/hello/x", pac.header_len) == 0);
 
     nr = srrp_read_one_packet(buf + nr, buf_len - nr, &pac);
     assert_true(nr == strlen(resp) + 1);
@@ -72,9 +66,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(pac.len == nr);
     assert_true(pac.reqid == 0x8888);
     assert_true(pac.reqcrc16 == crc);
-    assert_true(strcmp(pac.header, "/hello/x") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/hello/x", pac.header_len) == 0);
 
     free(buf);
 }
@@ -97,27 +89,21 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(pac.leader == '#');
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
-    assert_true(strcmp(pac.header, "/motor/speed") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/motor/speed", pac.header_len) == 0);
 
     nr = srrp_read_one_packet(unsub, sizeof(unsub), &pac);
     assert_true(nr == strlen(unsub) + 1);
     assert_true(pac.leader == '%');
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
-    assert_true(strcmp(pac.header, "/motor/speed") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/motor/speed", pac.header_len) == 0);
 
     nr = srrp_read_one_packet(pub, sizeof(pub), &pac);
     assert_true(nr == strlen(pub) + 1);
     assert_true(pac.leader == '@');
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
-    assert_true(strcmp(pac.header, "/motor/speed") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/motor/speed", pac.header_len) == 0);
 
     int buf_len = strlen(sub) + strlen(pub) + 2;
     char *buf = malloc(buf_len);
@@ -130,18 +116,14 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(pac.leader == '#');
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
-    assert_true(strcmp(pac.header, "/motor/speed") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/motor/speed", pac.header_len) == 0);
 
     nr = srrp_read_one_packet(buf + nr, buf_len - nr, &pac);
     assert_true(nr == strlen(pub) + 1);
     assert_true(pac.leader == '@');
     assert_true(pac.seat == '$');
     assert_true(pac.len == nr);
-    assert_true(strcmp(pac.header, "/motor/speed") == 0);
-    free((void *)pac.header);
-    free((void *)pac.data);
+    assert_true(memcmp(pac.header, "/motor/speed", pac.header_len) == 0);
 
     free(buf);
 }

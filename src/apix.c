@@ -49,11 +49,11 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             req->ts_create = time(0);
             req->ts_send = 0;
             req->fd = sinkfd->fd;
-            req->crc16 = crc16(pac.header, strlen(pac.header));
-            req->crc16 = crc16_crc(req->crc16, pac.data, strlen(pac.data));
+            req->crc16 = crc16(pac.header, pac.header_len);
+            req->crc16 = crc16_crc(req->crc16, pac.data, pac.data_len);
             req->leader = pac.leader;
             req->reqid = pac.reqid;
-            snprintf(req->header, sizeof(req->header), "%s", pac.header);
+            memcpy(req->header, pac.header, pac.header_len);
             req->content = strdup(pac.data);
             INIT_LIST_HEAD(&req->node);
             list_add(&req->node, &core->requests);
@@ -67,7 +67,7 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             resp->reqcrc16 = pac.reqcrc16;
             resp->leader = pac.leader;
             resp->reqid = pac.reqid;
-            snprintf(resp->header, sizeof(resp->header), "%s", pac.header);
+            memcpy(resp->header, pac.header, pac.header_len);
             resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
             list_add(&resp->node, &core->responses);
@@ -81,14 +81,12 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             tmsg->raw_len = nr;
             tmsg->sinkfd = sinkfd;
             tmsg->leader = pac.leader;
-            snprintf(tmsg->header, sizeof(tmsg->header), "%s", pac.header);
+            memcpy(tmsg->header, pac.header, pac.header_len);
             tmsg->content = strdup(pac.data);
             INIT_LIST_HEAD(&tmsg->node);
             list_add(&tmsg->node, &core->topic_msgs);
         }
 
-        free(pac.header);
-        free(pac.data);
         atbuf_read_advance(sinkfd->rxbuf, nr);
     }
 }
@@ -269,7 +267,8 @@ static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
 
 struct apicore *apicore_new()
 {
-    struct apicore *core = malloc(sizeof(struct apicore));
+    struct apicore *core = malloc(sizeof(*core));
+    bzero(core, sizeof(*core));
     INIT_LIST_HEAD(&core->requests);
     INIT_LIST_HEAD(&core->responses);
     INIT_LIST_HEAD(&core->services);

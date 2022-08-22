@@ -42,19 +42,12 @@ int __srrp_read_one_request(const char *buf, size_t size, struct srrp_packet *pa
         return -1;
     }
 
-    // parse header
-    int len_header = data_delimiter - delimiter - 1;
-    pac->header = malloc(len_header + 1);
-    memset(pac->header, 0, len_header + 1);
-    memcpy(pac->header, delimiter + 1, len_header);
+    pac->header = delimiter + 1;
+    pac->header_len = data_delimiter - delimiter - 1;
+    pac->data = data_delimiter;
+    pac->data_len = buf + strlen(buf) - data_delimiter;
 
-    // parse data
-    int len_data = buf + strlen(buf) - data_delimiter;
-    pac->data = malloc(len_data + 1);
-    memset(pac->data, 0, len_data + 1);
-    memcpy(pac->data, data_delimiter, len_data);
-
-    int retval =  3 + 2 + 5 + 5 + strlen(pac->header) + strlen(pac->data) + 1/*stop*/;
+    int retval =  3 + 2 + 5 + 5 + pac->header_len + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
         errno = EFORMAT;
         return -1;
@@ -94,19 +87,12 @@ int __srrp_read_one_response(const char *buf, size_t size, struct srrp_packet *p
         return -1;
     }
 
-    // parse header
-    int len_header = data_delimiter - delimiter - 1 - 4;
-    pac->header = malloc(len_header + 1);
-    memset(pac->header, 0, len_header + 1);
-    memcpy(pac->header, delimiter + 1 + 4, len_header);
+    pac->header = delimiter + 1 + 4;
+    pac->header_len = data_delimiter - delimiter - 1 - 4;
+    pac->data = data_delimiter;
+    pac->data_len = buf + strlen(buf) - data_delimiter;
 
-    // parse data
-    int len_data = buf + strlen(buf) - data_delimiter;
-    pac->data = malloc(len_data + 1);
-    memset(pac->data, 0, len_data + 1);
-    memcpy(pac->data, data_delimiter, len_data);
-
-    int retval =  3 + 2 + 5 + 5 + 4 + strlen(pac->header) + strlen(pac->data) + 1/*stop*/;
+    int retval =  3 + 2 + 5 + 5 + 4 + pac->header_len + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
         errno = EFORMAT;
         return -1;
@@ -144,19 +130,12 @@ int __srrp_read_one_subpub(const char *buf, size_t size, struct srrp_packet *pac
         return -1;
     }
 
-    // parse header
-    int len_header = data_delimiter - delimiter - 1;
-    pac->header = malloc(len_header + 1);
-    memset(pac->header, 0, len_header + 1);
-    memcpy(pac->header, delimiter + 1, len_header);
+    pac->header = delimiter + 1;
+    pac->header_len = data_delimiter - delimiter - 1;
+    pac->data = data_delimiter;
+    pac->data_len = buf + strlen(buf) - data_delimiter;
 
-    // parse data
-    int len_data = buf + strlen(buf) - data_delimiter;
-    pac->data = malloc(len_data + 1);
-    memset(pac->data, 0, len_data + 1);
-    memcpy(pac->data, data_delimiter, len_data);
-
-    int retval =  3 + 2 + 5 + strlen(pac->header) + strlen(pac->data) + 1/*stop*/;
+    int retval =  3 + 2 + 5 + pac->header_len + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
         errno = EFORMAT;
         return -1;
