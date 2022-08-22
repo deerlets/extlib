@@ -94,15 +94,15 @@ static void *server_thread(void *args)
 
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
-    struct srrp_packet pac;
-    int nr = srrp_read_one_packet(buf, sizeof(buf), &pac);
-    assert_true(nr == pac.len);
-    uint16_t crc = crc16(pac.header, strlen(pac.header));
-    crc = crc16_crc(crc, pac.data, strlen(pac.data));
+    struct srrp_packet *pac;
+    pac = srrp_read_one_packet(buf, sizeof(buf));
+    uint16_t crc = crc16(pac->header, pac->header_len);
+    crc = crc16_crc(crc, pac->data, pac->data_len);
     srrp_write_response(
-        resp, sizeof(resp), pac.reqid, crc, pac.header,
+        resp, sizeof(resp), pac->reqid, crc, pac->header,
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
     rc = send(fd, resp, strlen(resp) + 1, 0);
+    srrp_free(pac);
 
     rc = send(fd, req_del, strlen(req_del) + 1, 0);
     memset(buf, 0, sizeof(buf));

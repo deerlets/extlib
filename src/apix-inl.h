@@ -6,6 +6,7 @@
 #include "apix.h"
 #include "list.h"
 #include "atbuf.h"
+#include "srrp.h"
 
 #define APISINK_NAME_SIZE 64
 #define SINKFD_ADDR_SIZE 64
@@ -82,31 +83,18 @@ struct sinkfd *find_sinkfd_in_apisink(struct apisink *sink, int fd);
  */
 
 struct api_request {
-    void *raw;
-    size_t raw_len;
+    struct srrp_packet *pac;
     int state;
     uint64_t ts_create;
     uint64_t ts_send;
-
     int fd;
     uint16_t crc16;
-    char leader;
-    uint16_t reqid;
-    char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, need free
     struct list_head node;
 };
 
 struct api_response {
-    void *raw;
-    size_t raw_len;
-
+    struct srrp_packet *pac;
     int fd;
-    uint16_t reqid;
-    uint16_t reqcrc16;
-    char leader;
-    char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, need free
     struct list_head node;
 };
 
@@ -118,13 +106,8 @@ struct api_service {
 };
 
 struct api_topic_msg {
-    void *raw;
-    size_t raw_len;
-
+    struct srrp_packet *pac;
     struct sinkfd *sinkfd;
-    char leader;
-    char header[API_HEADER_SIZE];
-    char *content; // dynamic alloc, need free
     struct list_head node;
 };
 
@@ -138,24 +121,21 @@ struct api_topic {
 #define api_request_delete(req) \
 { \
     list_del(&req->node); \
-    free(req->raw); \
-    free(req->content); \
+    srrp_free(req->pac); \
     free(req); \
 }
 
 #define api_response_delete(resp) \
 { \
     list_del(&resp->node); \
-    free(resp->raw); \
-    free(resp->content); \
+    srrp_free(resp->pac); \
     free(resp); \
 }
 
 #define api_topic_msg_delete(tmsg) \
 { \
     list_del(&tmsg->node); \
-    free(tmsg->raw); \
-    free(tmsg->content); \
+    srrp_free(tmsg->pac); \
     free(tmsg); \
 }
 

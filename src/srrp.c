@@ -12,161 +12,156 @@
 #define LENGTH_MAX_LEN 32
 #define REQID_MAX_LEN 32
 
-int __srrp_read_one_request(const char *buf, size_t size, struct srrp_packet *pac)
+struct srrp_packet *__srrp_read_one_request(const char *buf, size_t size)
 {
     assert(buf[0] == SRRP_REQUEST_LEADER);
+
+    char leader, seat;
     uint32_t seqno, len, reqid;
 
     // FIXME: shall we use "%c%x,%c,%4x,%4x:%[^{}]%s" to parse header and data ?
-    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x:",
-                     &pac->leader,
-                     &seqno,
-                     &pac->seat,
-                     &len,
-                     &reqid);
+    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x:", &leader, &seqno, &seat, &len, &reqid);
+    if (cnt != 5) return NULL;
 
-    if (cnt != 5) {
-        errno = EFORMAT;
-        return -1;
-    }
+    const char *header_delimiter = strstr(buf, ":/");
+    const char *data_delimiter = strstr(buf, "?{");
+    if (header_delimiter == NULL || data_delimiter == NULL)
+        return NULL;
 
+    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    memcpy(pac->raw, buf, len);
+    pac->leader = leader;
+    pac->seat = seat;
     pac->seqno = seqno;
     pac->len = len;
     pac->reqid = reqid;
 
-    const char *delimiter = strchr(buf, SRRP_DELIMITER);
-    const char *data_delimiter = strchr(buf, '{');
+    const char *header = header_delimiter + 1;
+    const char *data = data_delimiter + 1;
+    pac->header = pac->raw + (header - buf);
+    pac->header_len = data_delimiter - header;
+    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    pac->data = pac->raw + (data - buf);
+    pac->data_len = buf + strlen(buf) - data;
 
-    if (delimiter == NULL || data_delimiter == NULL) {
-        errno = EFORMAT;
-        return -1;
-    }
-
-    pac->header = delimiter + 1;
-    pac->header_len = data_delimiter - delimiter - 1;
-    pac->data = data_delimiter;
-    pac->data_len = buf + strlen(buf) - data_delimiter;
-
-    int retval =  3 + 2 + 5 + 5 + pac->header_len + pac->data_len + 1/*stop*/;
+    int retval =  3 + 2 + 5 + 5 + pac->header_len + 1 + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
-        errno = EFORMAT;
-        return -1;
+        free(pac);
+        return NULL;
     }
-    return retval;
+    return pac;
 }
 
-int __srrp_read_one_response(const char *buf, size_t size, struct srrp_packet *pac)
+struct srrp_packet *__srrp_read_one_response(const char *buf, size_t size)
 {
     assert(buf[0] == SRRP_RESPONSE_LEADER);
+
+    char leader, seat;
     uint32_t seqno, len, reqid, reqcrc16;
 
     // FIXME: shall we use "%c%x,%c,%4x,%4x:%x%[^{}]%s" to parse header and data ?
-    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x:%x/",
-                     &pac->leader,
-                     &seqno,
-                     &pac->seat,
-                     &len,
-                     &reqid,
-                     &reqcrc16);
+    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x,%x:/",
+                     &leader, &seqno, &seat, &len, &reqid, &reqcrc16);
+    if (cnt != 6) return NULL;
 
-    if (cnt != 6) {
-        errno = EFORMAT;
-        return -1;
-    }
+    const char *header_delimiter = strstr(buf, ":/");
+    const char *data_delimiter = strstr(buf, "?{");
+    if (header_delimiter == NULL || data_delimiter == NULL)
+        return NULL;
 
+    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    memcpy(pac->raw, buf, len);
+    pac->leader = leader;
+    pac->seat = seat;
     pac->seqno = seqno;
     pac->len = len;
     pac->reqid = reqid;
     pac->reqcrc16 = reqcrc16;
 
-    const char *delimiter = strchr(buf, SRRP_DELIMITER);
-    const char *data_delimiter = strchr(buf, '{');
+    const char *header = header_delimiter + 1;
+    const char *data = data_delimiter + 1;
+    pac->header = pac->raw + (header - buf);
+    pac->header_len = data_delimiter - header;
+    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    pac->data = pac->raw + (data - buf);
+    pac->data_len = buf + strlen(buf) - data;
 
-    if (delimiter == NULL || data_delimiter == NULL) {
-        errno = EFORMAT;
-        return -1;
-    }
-
-    pac->header = delimiter + 1 + 4;
-    pac->header_len = data_delimiter - delimiter - 1 - 4;
-    pac->data = data_delimiter;
-    pac->data_len = buf + strlen(buf) - data_delimiter;
-
-    int retval =  3 + 2 + 5 + 5 + 4 + pac->header_len + pac->data_len + 1/*stop*/;
+    int retval =  3 + 2 + 5 + 5 + 5 + pac->header_len + 1 + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
-        errno = EFORMAT;
-        return -1;
+        free(pac);
+        return NULL;
     }
-    return retval;
+    return pac;
 }
 
-int __srrp_read_one_subpub(const char *buf, size_t size, struct srrp_packet *pac)
+struct srrp_packet *__srrp_read_one_subpub(const char *buf, size_t size)
 {
     assert(buf[0] == SRRP_SUBSCRIBE_LEADER ||
            buf[0] == SRRP_UNSUBSCRIBE_LEADER ||
            buf[0] == SRRP_PUBLISH_LEADER);
+
+    char leader, seat;
     uint32_t seqno, len;
 
     // FIXME: shall we use "%c%x,%c,%4x:%[^{}]%s" to parse header and data ?
-    int cnt = sscanf(buf, "%c%x,%c,%4x:",
-                     &pac->leader,
-                     &seqno,
-                     &pac->seat,
-                     &len);
+    int cnt = sscanf(buf, "%c%x,%c,%4x:", &leader, &seqno, &seat, &len);
+    if (cnt != 4) return NULL;
 
-    if (cnt != 4) {
-        errno = EFORMAT;
-        return -1;
-    }
+    const char *header_delimiter = strstr(buf, ":/");
+    const char *data_delimiter = strstr(buf, "?{");
+    if (header_delimiter == NULL || data_delimiter == NULL)
+        return NULL;
 
+    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    memcpy(pac->raw, buf, len);
+    pac->leader = leader;
+    pac->seat = seat;
     pac->seqno = seqno;
     pac->len = len;
 
-    const char *delimiter = strchr(buf, SRRP_DELIMITER);
-    const char *data_delimiter = strchr(buf, '{');
+    const char *header = header_delimiter + 1;
+    const char *data = data_delimiter + 1;
+    pac->header = pac->raw + (header - buf);
+    pac->header_len = data_delimiter - header;
+    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    pac->data = pac->raw + (data - buf);
+    pac->data_len = buf + strlen(buf) - data;
 
-    if (delimiter == NULL || data_delimiter == NULL) {
-        errno = EFORMAT;
-        return -1;
-    }
-
-    pac->header = delimiter + 1;
-    pac->header_len = data_delimiter - delimiter - 1;
-    pac->data = data_delimiter;
-    pac->data_len = buf + strlen(buf) - data_delimiter;
-
-    int retval =  3 + 2 + 5 + pac->header_len + pac->data_len + 1/*stop*/;
+    int retval =  3 + 2 + 5 + pac->header_len + 1 + pac->data_len + 1/*stop*/;
     if (retval != pac->len) {
-        errno = EFORMAT;
-        return -1;
+        return NULL;
     }
-    return retval;
+    return pac;
 }
 
-int srrp_read_one_packet(const char *buf, size_t size, struct srrp_packet *pac)
+struct srrp_packet *srrp_read_one_packet(const char *buf, size_t size)
 {
     const char *leader = buf;
 
     if (*leader == SRRP_REQUEST_LEADER)
-        return __srrp_read_one_request(buf, size, pac);
+        return __srrp_read_one_request(buf, size);
     else if (*leader == SRRP_RESPONSE_LEADER)
-        return __srrp_read_one_response(buf, size, pac);
+        return __srrp_read_one_response(buf, size);
     else if (*leader == SRRP_SUBSCRIBE_LEADER ||
              *leader == SRRP_UNSUBSCRIBE_LEADER ||
              *leader == SRRP_PUBLISH_LEADER)
-        return __srrp_read_one_subpub(buf, size, pac);
+        return __srrp_read_one_subpub(buf, size);
 
-    errno = EFORMAT;
-    return -1;
+    return NULL;
+}
+
+void srrp_free(struct srrp_packet *pac)
+{
+    free(pac);
 }
 
 int srrp_write_request(
     char *buf, size_t size, uint16_t reqid,
     const char *header, const char *data)
 {
-    size_t len = 15 + strlen(header) + strlen(data) + 1/*stop*/;
+    size_t len = 15 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, ">0,$,%.4x,%.4x:%s%s",
+    int nr = snprintf(buf, size, ">0,$,%.4x,%.4x:%s?%s",
                       (uint32_t)len, reqid, header, data);
     assert(nr + 1 == len);
     return len;
@@ -176,9 +171,9 @@ int srrp_write_response(
     char *buf, size_t size, uint16_t reqid, uint16_t reqcrc16,
     const char *header, const char *data)
 {
-    size_t len = 15 + 4/*crc16*/ + strlen(header) + strlen(data) + 1/*stop*/;
+    size_t len = 15 + 5/*crc16*/ + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "<0,$,%.4x,%.4x:%.4x%s%s",
+    int nr = snprintf(buf, size, "<0,$,%.4x,%.4x,%.4x:%s?%s",
                       (uint32_t)len, reqid, reqcrc16, header, data);
     assert(nr + 1 == len);
     return len;
@@ -186,9 +181,9 @@ int srrp_write_response(
 
 int srrp_write_subscribe(char *buf, size_t size, const char *header, const char *ctrl)
 {
-    size_t len = 10 + strlen(header) + strlen(ctrl) + 1/*stop*/;
+    size_t len = 10 + strlen(header) + 1 + strlen(ctrl) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "#0,$,%.4x:%s%s", (uint32_t)len, header, ctrl);
+    int nr = snprintf(buf, size, "#0,$,%.4x:%s?%s", (uint32_t)len, header, ctrl);
     assert(nr + 1 == len);
     return len;
 }
@@ -196,18 +191,18 @@ int srrp_write_subscribe(char *buf, size_t size, const char *header, const char 
 int /*nr*/ srrp_write_unsubscribe(
     char *buf, size_t size, const char *header)
 {
-    size_t len = 10 + strlen(header) + 2/*data*/ + 1/*stop*/;
+    size_t len = 10 + strlen(header) + 1 + 2/*data*/ + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "%%0,$,%.4x:%s{}", (uint32_t)len, header);
+    int nr = snprintf(buf, size, "%%0,$,%.4x:%s?{}", (uint32_t)len, header);
     assert(nr + 1 == len);
     return len;
 }
 
 int srrp_write_publish(char *buf, size_t size, const char *header, const char *data)
 {
-    size_t len = 10 + strlen(header) + strlen(data) + 1/*stop*/;
+    size_t len = 10 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "@0,$,%.4x:%s%s", (uint32_t)len, header, data);
+    int nr = snprintf(buf, size, "@0,$,%.4x:%s?%s", (uint32_t)len, header, data);
     assert(nr + 1 == len);
     return len;
 }

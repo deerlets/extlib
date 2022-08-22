@@ -19,12 +19,10 @@
 
 static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
 {
-    struct srrp_packet pac = {0};
-
     while (atbuf_used(sinkfd->rxbuf)) {
-        int nr = srrp_read_one_packet(
-            atbuf_read_pos(sinkfd->rxbuf), atbuf_used(sinkfd->rxbuf), &pac);
-        if (nr == -1) {
+        struct srrp_packet *pac = srrp_read_one_packet(
+            atbuf_read_pos(sinkfd->rxbuf), atbuf_used(sinkfd->rxbuf));
+        if (pac == NULL) {
             if (time(0) < sinkfd->ts_poll_recv.tv_sec + PARSE_PACKET_TIMEOUT / 1000)
                 break;
 
@@ -39,55 +37,37 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             break;
         }
 
-        if (pac.leader == SRRP_REQUEST_LEADER) {
+        if (pac->leader == SRRP_REQUEST_LEADER) {
             struct api_request *req = malloc(sizeof(*req));
             memset(req, 0, sizeof(*req));
-            req->raw = malloc(nr);
-            memcpy(req->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
-            req->raw_len = nr;
+            req->pac = pac;
             req->state = API_REQUEST_ST_NONE;
             req->ts_create = time(0);
             req->ts_send = 0;
             req->fd = sinkfd->fd;
-            req->crc16 = crc16(pac.header, pac.header_len);
-            req->crc16 = crc16_crc(req->crc16, pac.data, pac.data_len);
-            req->leader = pac.leader;
-            req->reqid = pac.reqid;
-            memcpy(req->header, pac.header, pac.header_len);
-            req->content = strdup(pac.data);
+            req->crc16 = crc16(pac->header, pac->header_len);
+            req->crc16 = crc16_crc(req->crc16, pac->data, pac->data_len);
             INIT_LIST_HEAD(&req->node);
             list_add(&req->node, &core->requests);
-        } else if (pac.leader == SRRP_RESPONSE_LEADER) {
+        } else if (pac->leader == SRRP_RESPONSE_LEADER) {
             struct api_response *resp = malloc(sizeof(*resp));
             memset(resp, 0, sizeof(*resp));
-            resp->raw = malloc(nr);
-            memcpy(resp->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
-            resp->raw_len = nr;
+            resp->pac = pac;
             resp->fd = sinkfd->fd;
-            resp->reqcrc16 = pac.reqcrc16;
-            resp->leader = pac.leader;
-            resp->reqid = pac.reqid;
-            memcpy(resp->header, pac.header, pac.header_len);
-            resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
             list_add(&resp->node, &core->responses);
-        } else if (pac.leader == SRRP_SUBSCRIBE_LEADER ||
-                   pac.leader == SRRP_UNSUBSCRIBE_LEADER ||
-                   pac.leader == SRRP_PUBLISH_LEADER) {
+        } else if (pac->leader == SRRP_SUBSCRIBE_LEADER ||
+                   pac->leader == SRRP_UNSUBSCRIBE_LEADER ||
+                   pac->leader == SRRP_PUBLISH_LEADER) {
             struct api_topic_msg *tmsg = malloc(sizeof(*tmsg));
             memset(tmsg, 0, sizeof(*tmsg));
-            tmsg->raw = malloc(nr);
-            memcpy(tmsg->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
-            tmsg->raw_len = nr;
+            tmsg->pac = pac;
             tmsg->sinkfd = sinkfd;
-            tmsg->leader = pac.leader;
-            memcpy(tmsg->header, pac.header, pac.header_len);
-            tmsg->content = strdup(pac.data);
             INIT_LIST_HEAD(&tmsg->node);
             list_add(&tmsg->node, &core->topic_msgs);
         }
 
-        atbuf_read_advance(sinkfd->rxbuf, nr);
+        atbuf_read_advance(sinkfd->rxbuf, pac->len);
     }
 }
 
@@ -213,7 +193,7 @@ static void topic_sub_handler(struct apicore *core, struct api_topic_msg *tmsg)
     struct api_topic *topic = NULL;
     struct api_topic *pos;
     list_for_each_entry(pos, &core->topics, node) {
-        if (strcmp(topic->header, tmsg->header) == 0) {
+        if (strcmp(topic->header, tmsg->pac->header) == 0) {
             topic = pos;
             break;
         }
@@ -221,7 +201,7 @@ static void topic_sub_handler(struct apicore *core, struct api_topic_msg *tmsg)
     if (topic == NULL) {
         topic = malloc(sizeof(*topic));
         memset(topic, 0, sizeof(*topic));
-        snprintf(topic->header, sizeof(topic->header), "%s", tmsg->header);
+        snprintf(topic->header, sizeof(topic->header), "%s", tmsg->pac->header);
         INIT_LIST_HEAD(&topic->node);
         list_add(&topic->node, &core->topics);
     }
@@ -236,7 +216,7 @@ static void topic_unsub_handler(struct apicore *core, struct api_topic_msg *tmsg
 {
     struct api_topic *topic = NULL;
     list_for_each_entry(topic, &core->topics, node) {
-        if (strcmp(topic->header, tmsg->header) == 0) {
+        if (strcmp(topic->header, tmsg->pac->header) == 0) {
             break;
         }
     }
@@ -255,13 +235,17 @@ static void topic_unsub_handler(struct apicore *core, struct api_topic_msg *tmsg
 static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
 {
     struct api_topic *topic = find_topic(
-        &core->topics, tmsg->header, strlen(tmsg->header));
+        &core->topics, tmsg->pac->header, tmsg->pac->header_len);
     if (topic) {
-        for (int i = 0; i < topic->nfds; i++)
-            apicore_send(core, topic->fds[i], tmsg->raw, tmsg->raw_len);
+        char *tmp = calloc(1, tmsg->pac->len);
+        srrp_write_publish(tmp, tmsg->pac->len, tmsg->pac->header, tmsg->pac->data);
+        for (int i = 0; i < topic->nfds; i++) {
+            apicore_send(core, topic->fds[i], tmp, tmsg->pac->len);
+        }
+        free(tmp);
     } else {
         // do nothing, just drop this msg
-        LOG_DEBUG("drop @: %s%s", tmsg->header, tmsg->content);
+        LOG_DEBUG("drop @: %s%s", tmsg->pac->header, tmsg->pac->data);
     }
 }
 
@@ -340,34 +324,34 @@ static void handle_request(struct apicore *core)
             if (time(0) < pos->ts_send + API_REQUEST_TIMEOUT / 1000)
                 continue;
             apicore_send(core, pos->fd, "request timeout", 15);
-            LOG_DEBUG("request timeout: %s", pos->raw);
+            LOG_DEBUG("request timeout: %s", pos->pac->raw);
             api_request_delete(pos);
             continue;
         }
 
-        LOG_INFO("poll >: %.4x%s%s", pos->reqid, pos->header, pos->content);
-        if (strcmp(pos->header, APICORE_SERVICE_ADD) == 0) {
-            service_add_handler(core, pos->content, pos->fd);
+        LOG_INFO("poll >: %.4x:%s?%s", pos->pac->reqid, pos->pac->header, pos->pac->data);
+        if (strcmp(pos->pac->header, APICORE_SERVICE_ADD) == 0) {
+            service_add_handler(core, pos->pac->data, pos->fd);
             api_request_delete(pos);
-        } else if (strcmp(pos->header, APICORE_SERVICE_DEL) == 0) {
-            service_del_handler(core, pos->content, pos->fd);
+        } else if (strcmp(pos->pac->header, APICORE_SERVICE_DEL) == 0) {
+            service_del_handler(core, pos->pac->data, pos->fd);
             api_request_delete(pos);
-        } else if (strcmp(pos->header, APICORE_SERVICE_ALIVE) == 0) {
-            service_alive_handler(core, pos->content, pos->fd);
+        } else if (strcmp(pos->pac->header, APICORE_SERVICE_ALIVE) == 0) {
+            service_alive_handler(core, pos->pac->data, pos->fd);
             api_request_delete(pos);
         } else {
             struct api_service *serv = find_service(
-                &core->services, pos->header, strlen(pos->header));
+                &core->services, pos->pac->header, strlen(pos->pac->header));
             if (serv) {
                 // change reqid
-                char *tmp = calloc(1, pos->raw_len);
-                srrp_write_request(tmp, pos->raw_len, pos->fd,
-                                   pos->header, pos->content);
+                char *tmp = calloc(1, pos->pac->len);
+                srrp_write_request(tmp, pos->pac->len, pos->fd,
+                                   pos->pac->header, pos->pac->data);
 
                 assert(serv->sinkfd->sink->ops.send);
                 serv->sinkfd->sink->ops.send(
                     serv->sinkfd->sink, serv->sinkfd->fd,
-                    tmp, pos->raw_len);
+                    tmp, pos->pac->len);
                 pos->state = API_REQUEST_ST_WAIT_RESPONSE;
                 pos->ts_send = time(0);
 
@@ -384,18 +368,19 @@ static void handle_response(struct apicore *core)
 {
     struct api_response *pos, *n;
     list_for_each_entry_safe(pos, n, &core->responses, node) {
-        LOG_INFO("poll <: %.4x%s%s", pos->reqid, pos->header, pos->content);
+        LOG_INFO("poll <: %.4x:%s?%s", pos->pac->reqid, pos->pac->header, pos->pac->data);
         struct api_request *pos_req, *n_req;
         list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-            if (pos_req->crc16 == pos->reqcrc16 &&
-                strcmp(pos_req->header, pos->header) == 0 &&
-                pos_req->fd == pos->reqid) {
+            if (pos_req->crc16 == pos->pac->reqcrc16 &&
+                strcmp(pos_req->pac->header, pos->pac->header) == 0 &&
+                pos_req->fd == pos->pac->reqid) {
                 // restore reqid
-                char *tmp = calloc(1, pos->raw_len);
-                srrp_write_request(tmp, pos->raw_len, pos_req->reqid,
-                                   pos->header, pos->content);
+                char *tmp = calloc(1, pos->pac->len);
+                srrp_write_response(tmp, pos->pac->len, pos_req->pac->reqid,
+                                    pos->pac->reqcrc16,
+                                    pos->pac->header, pos->pac->data);
 
-                apicore_send(core, pos_req->fd, tmp, pos->raw_len);
+                apicore_send(core, pos_req->fd, tmp, pos->pac->len);
                 api_request_delete(pos_req);
 
                 free(tmp);
@@ -410,15 +395,15 @@ static void handle_topic_msg(struct apicore *core)
 {
     struct api_topic_msg *pos, *n;
     list_for_each_entry_safe(pos, n, &core->topic_msgs, node) {
-        if (pos->leader == SRRP_SUBSCRIBE_LEADER) {
+        if (pos->pac->leader == SRRP_SUBSCRIBE_LEADER) {
             topic_sub_handler(core, pos);
-            LOG_INFO("poll #: %s%s", pos->header, pos->content);
-        } else if (pos->leader == SRRP_UNSUBSCRIBE_LEADER) {
+            LOG_INFO("poll #: %s?%s", pos->pac->header, pos->pac->data);
+        } else if (pos->pac->leader == SRRP_UNSUBSCRIBE_LEADER) {
             topic_unsub_handler(core, pos);
-            LOG_INFO("poll %: %s%s", pos->header, pos->content);
+            LOG_INFO("poll %: %s?%s", pos->pac->header, pos->pac->data);
         } else {
             topic_pub_handler(core, pos);
-            LOG_INFO("poll @: %s%s", pos->header, pos->content);
+            LOG_INFO("poll @: %s?%s", pos->pac->header, pos->pac->data);
         }
         api_topic_msg_delete(pos);
     }
