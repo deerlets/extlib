@@ -34,12 +34,9 @@ static void test_api_serial(void **status)
     for (int i = 0; i < 3; i++) {
         int nr = 0;
         char buf[256];
-        char req[256];
-        int nreq = 0;
-
-        nreq = srrp_write_request(req, sizeof(req), fd, "/0012/echo", "{msg:'hello'}");
-        nr = apicore_send(core, fd, req, nreq);
-        LOG_INFO("%d, %s", nr, req);
+        struct srrp_packet *pac = srrp_write_request(fd, "/0012/echo", "{msg:'hello'}");
+        nr = apicore_send(core, fd, pac->raw, pac->len);
+        LOG_INFO("%d, %s", nr, pac->raw);
         bzero(buf, sizeof(buf));
         sleep(1);
         nr = apicore_recv(core, fd, buf, sizeof(buf));

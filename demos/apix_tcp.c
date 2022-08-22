@@ -41,12 +41,9 @@ static int test()
     while (1) {
         int nr = 0;
         char buf[256];
-        char req[256];
-        int nreq = 0;
-
-        nreq = srrp_write_request(req, sizeof(req), fd, "/0012/echo", "{msg:'hello'}");
-        nr = send(fd, req, nreq, 0);
-        LOG_INFO("%d, %s", nr, req);
+        struct srrp_packet *pac = srrp_write_request(fd, "/0012/echo", "{msg:'hello'}");
+        nr = send(fd, pac->raw, pac->len, 0);
+        LOG_INFO("%d, %s", nr, pac->raw);
         bzero(buf, sizeof(buf));
         usleep(50 * 1000);
         nr = recv(fd, buf, sizeof(buf), 0);

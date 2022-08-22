@@ -12,7 +12,13 @@
 #define LENGTH_MAX_LEN 32
 #define REQID_MAX_LEN 32
 
-struct srrp_packet *__srrp_read_one_request(const char *buf)
+void srrp_free(struct srrp_packet *pac)
+{
+    free(pac);
+}
+
+static struct srrp_packet *
+__srrp_read_one_request(const char *buf)
 {
     assert(buf[0] == SRRP_REQUEST_LEADER);
 
@@ -51,7 +57,8 @@ struct srrp_packet *__srrp_read_one_request(const char *buf)
     return pac;
 }
 
-struct srrp_packet *__srrp_read_one_response(const char *buf)
+static struct srrp_packet *
+__srrp_read_one_response(const char *buf)
 {
     assert(buf[0] == SRRP_RESPONSE_LEADER);
 
@@ -92,7 +99,8 @@ struct srrp_packet *__srrp_read_one_response(const char *buf)
     return pac;
 }
 
-struct srrp_packet *__srrp_read_one_subpub(const char *buf)
+static struct srrp_packet *
+__srrp_read_one_subpub(const char *buf)
 {
     assert(buf[0] == SRRP_SUBSCRIBE_LEADER ||
            buf[0] == SRRP_UNSUBSCRIBE_LEADER ||
@@ -131,7 +139,8 @@ struct srrp_packet *__srrp_read_one_subpub(const char *buf)
     return pac;
 }
 
-struct srrp_packet *srrp_read_one_packet(const char *buf)
+struct srrp_packet *
+srrp_read_one_packet(const char *buf)
 {
     const char *leader = buf;
 
@@ -147,61 +156,124 @@ struct srrp_packet *srrp_read_one_packet(const char *buf)
     return NULL;
 }
 
-void srrp_free(struct srrp_packet *pac)
+struct srrp_packet *
+srrp_write_request(uint16_t reqid, const char *header, const char *data)
 {
-    free(pac);
-}
-
-int srrp_write_request(
-    char *buf, size_t size, uint16_t reqid,
-    const char *header, const char *data)
-{
-    size_t len = 15 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
+    int len = 15 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, ">0,$,%.4x,%.4x:%s?%s",
+
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
+    assert(pac);
+
+    int nr = snprintf(pac->raw, len, ">0,$,%.4x,%.4x:%s?%s",
                       (uint32_t)len, reqid, header, data);
     assert(nr + 1 == len);
-    return len;
+
+    pac->leader = SRRP_REQUEST_LEADER;
+    pac->seat = '$';
+    pac->seqno = 0;
+    pac->len = len;
+    pac->reqid = reqid;
+    snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
+    pac->header_len = strlen(header);
+    pac->data_len = strlen(data);
+    pac->data = pac->raw + len - pac->data_len - 1;
+    return pac;
 }
 
-int srrp_write_response(
-    char *buf, size_t size, uint16_t reqid, uint16_t reqcrc16,
-    const char *header, const char *data)
+struct srrp_packet *
+srrp_write_response(uint16_t reqid, uint16_t reqcrc16, const char *header, const char *data)
 {
-    size_t len = 15 + 5/*crc16*/ + strlen(header) + 1 + strlen(data) + 1/*stop*/;
+    int len = 15 + 5/*crc16*/ + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "<0,$,%.4x,%.4x,%.4x:%s?%s",
+
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
+    assert(pac);
+
+    int nr = snprintf(pac->raw, len, "<0,$,%.4x,%.4x,%.4x:%s?%s",
                       (uint32_t)len, reqid, reqcrc16, header, data);
     assert(nr + 1 == len);
-    return len;
+
+    pac->leader = SRRP_RESPONSE_LEADER;
+    pac->seat = '$';
+    pac->seqno = 0;
+    pac->len = len;
+    pac->reqid = reqid;
+    pac->reqcrc16 = reqcrc16;
+    snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
+    pac->header_len = strlen(header);
+    pac->data_len = strlen(data);
+    pac->data = pac->raw + len - pac->data_len - 1;
+    return pac;
 }
 
-int srrp_write_subscribe(char *buf, size_t size, const char *header, const char *ctrl)
+struct srrp_packet *
+srrp_write_subscribe(const char *header, const char *ctrl)
 {
-    size_t len = 10 + strlen(header) + 1 + strlen(ctrl) + 1/*stop*/;
+    int len = 10 + strlen(header) + 1 + strlen(ctrl) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "#0,$,%.4x:%s?%s", (uint32_t)len, header, ctrl);
+
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
+    assert(pac);
+
+    int nr = snprintf(pac->raw, len, "#0,$,%.4x:%s?%s", (uint32_t)len, header, ctrl);
     assert(nr + 1 == len);
-    return len;
+
+    pac->leader = SRRP_SUBSCRIBE_LEADER;
+    pac->seat = '$';
+    pac->seqno = 0;
+    pac->len = len;
+    snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
+    pac->header_len = strlen(header);
+    pac->data_len = strlen(ctrl);
+    pac->data = pac->raw + len - pac->data_len - 1;
+    return pac;
 }
 
-int /*nr*/ srrp_write_unsubscribe(
-    char *buf, size_t size, const char *header)
+struct srrp_packet *
+srrp_write_unsubscribe(const char *header)
 {
-    size_t len = 10 + strlen(header) + 1 + 2/*data*/ + 1/*stop*/;
+    int len = 10 + strlen(header) + 1 + 2/*data*/ + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "%%0,$,%.4x:%s?{}", (uint32_t)len, header);
+
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
+    assert(pac);
+
+    int nr = snprintf(pac->raw, len, "%%0,$,%.4x:%s?{}", (uint32_t)len, header);
     assert(nr + 1 == len);
-    return len;
+
+    pac->leader = SRRP_UNSUBSCRIBE_LEADER;
+    pac->seat = '$';
+    pac->seqno = 0;
+    pac->len = len;
+    snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
+    pac->header_len = strlen(header);
+    pac->data_len = 2;
+    pac->data = pac->raw + len - pac->data_len - 1;
+    return pac;
 }
 
-int srrp_write_publish(char *buf, size_t size, const char *header, const char *data)
+struct srrp_packet *
+srrp_write_publish(const char *header, const char *data)
 {
-    size_t len = 10 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
+    int len = 10 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
-    int nr = snprintf(buf, size, "@0,$,%.4x:%s?%s", (uint32_t)len, header, data);
+
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
+    assert(pac);
+
+    int nr = snprintf(pac->raw, len, "@0,$,%.4x:%s?%s", (uint32_t)len, header, data);
     assert(nr + 1 == len);
-    return len;
+
+    pac->leader = SRRP_PUBLISH_LEADER;
+    pac->seat = '$';
+    pac->seqno = 0;
+    pac->len = len;
+    snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
+    pac->header_len = strlen(header);
+    pac->data_len = strlen(data);
+    pac->data = pac->raw + len - pac->data_len - 1;
+    return pac;
 }
 
 int srrp_next_packet_offset(const char *buf)

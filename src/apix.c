@@ -339,18 +339,17 @@ static void handle_request(struct apicore *core)
                 &core->services, pos->pac->header, strlen(pos->pac->header));
             if (serv) {
                 // change reqid
-                char *tmp = calloc(1, pos->pac->len);
-                srrp_write_request(tmp, pos->pac->len, pos->fd,
-                                   pos->pac->header, pos->pac->data);
+                struct srrp_packet *pac = srrp_write_request(
+                    pos->fd, pos->pac->header, pos->pac->data);
 
                 assert(serv->sinkfd->sink->ops.send);
                 serv->sinkfd->sink->ops.send(
                     serv->sinkfd->sink, serv->sinkfd->fd,
-                    tmp, pos->pac->len);
+                    pac->raw, pos->pac->len);
                 pos->state = API_REQUEST_ST_WAIT_RESPONSE;
                 pos->ts_send = time(0);
 
-                free(tmp);
+                srrp_free(pac);
             } else {
                 apicore_send(core, pos->fd, "SERVICE NOT FOUND", 17);
                 api_request_delete(pos);
@@ -370,15 +369,14 @@ static void handle_response(struct apicore *core)
                 strcmp(pos_req->pac->header, pos->pac->header) == 0 &&
                 pos_req->fd == pos->pac->reqid) {
                 // restore reqid
-                char *tmp = calloc(1, pos->pac->len);
-                srrp_write_response(tmp, pos->pac->len, pos_req->pac->reqid,
-                                    pos->pac->reqcrc16,
-                                    pos->pac->header, pos->pac->data);
+                struct srrp_packet *pac = srrp_write_response(
+                    pos_req->pac->reqid, pos->pac->reqcrc16,
+                    pos->pac->header, pos->pac->data);
 
-                apicore_send(core, pos_req->fd, tmp, pos->pac->len);
+                apicore_send(core, pos_req->fd, pac->raw, pos->pac->len);
                 api_request_delete(pos_req);
 
-                free(tmp);
+                srrp_free(pac);
                 break;
             }
         }

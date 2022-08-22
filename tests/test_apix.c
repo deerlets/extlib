@@ -42,12 +42,10 @@ static void *client_thread(void *args)
 
     sleep(1);
 
-    char req[256] = {0};
-    srrp_write_request(
-        req, sizeof(req), fd, "/hello/x",
-        "{name:'yon',age:'18',equip:['hat','shoes']}");
-
-    rc = send(fd, req, strlen(req) + 1, 0);
+    struct srrp_packet *pac = srrp_write_request(
+        fd, "/hello/x", "{name:'yon',age:'18',equip:['hat','shoes']}");
+    rc = send(fd, pac->raw, pac->len, 0);
+    srrp_free(pac);
 
     char buf[256] = {0};
     rc = recv(fd, buf, sizeof(buf), 0);
@@ -76,38 +74,37 @@ static void *server_thread(void *args)
     }
 
     char buf[256] = {0};
-    char req_add[256] = {0};
-    char req_del[256] = {0};
-    char resp[256] = {0};
 
-    srrp_write_request(
-        req_add, sizeof(req_add), fd, "/apicore/service/add",
-        "{header:'/hello/x'}");
-    srrp_write_request(
-        req_del, sizeof(req_del), fd, "/apicore/service/del",
-        "{header:'/hello/x'}");
+    struct srrp_packet *pac_add = srrp_write_request(
+        fd, "/apicore/service/add", "{header:'/hello/x'}");
+    struct srrp_packet *pac_del = srrp_write_request(
+        fd, "/apicore/service/del", "{header:'/hello/x'}");
 
-    rc = send(fd, req_add, strlen(req_add) + 1, 0);
+    rc = send(fd, pac_add->raw, pac_add->len, 0);
     memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv response: %s", buf);
+    srrp_free(pac_add);
 
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
-    struct srrp_packet *pac;
-    pac = srrp_read_one_packet(buf);
-    uint16_t crc = crc16(pac->header, pac->header_len);
-    crc = crc16_crc(crc, pac->data, pac->data_len);
-    srrp_write_response(
-        resp, sizeof(resp), pac->reqid, crc, pac->header,
+    struct srrp_packet *rxpac;
+    rxpac = srrp_read_one_packet(buf);
+    uint16_t crc = crc16(rxpac->header, rxpac->header_len);
+    crc = crc16_crc(crc, rxpac->data, rxpac->data_len);
+    struct srrp_packet *txpac;
+    txpac = srrp_write_response(
+        rxpac->reqid, crc, rxpac->header,
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
-    rc = send(fd, resp, strlen(resp) + 1, 0);
-    srrp_free(pac);
+    rc = send(fd, txpac->raw, txpac->len, 0);
+    srrp_free(rxpac);
+    srrp_free(txpac);
 
-    rc = send(fd, req_del, strlen(req_del) + 1, 0);
+    rc = send(fd, pac_del->raw, pac_del->len, 0);
     memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv response: %s", buf);
+    srrp_free(pac_del);
 
     close(fd);
     server_finished = 1;
@@ -168,9 +165,9 @@ static void *publish_thread(void *args)
 
     sleep(1);
 
-    char pub[256] = {0};
-    srrp_write_publish(pub, sizeof(pub), "/test-topic", "{msg:'ahaa'}");
-    rc = send(fd, pub, strlen(pub) + 1, 0);
+    struct srrp_packet *pac = srrp_write_publish("/test-topic", "{msg:'ahaa'}");
+    rc = send(fd, pac->raw, pac->len, 0);
+    srrp_free(pac);
 
     close(fd);
     publish_finished = 1;
@@ -205,13 +202,10 @@ static void *subscribe_thread(void *args)
     }
 
     char buf[256] = {0};
-    char sub[256] = {0};
-    char unsub[256] = {0};
 
-    srrp_write_subscribe(sub, sizeof(sub), "/test-topic", "{}");
-    srrp_write_unsubscribe(unsub, sizeof(unsub), "/test-topic");
-
-    rc = send(fd, sub, strlen(sub) + 1, 0);
+    struct srrp_packet *pac_sub = srrp_write_subscribe("/test-topic", "{}");
+    rc = send(fd, pac_sub->raw, pac_sub->len, 0);
+    srrp_free(pac_sub);
     memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv sub: %s", buf);
@@ -219,7 +213,9 @@ static void *subscribe_thread(void *args)
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv pub: %s", buf);
 
-    rc = send(fd, unsub, strlen(unsub) + 1, 0);
+    struct srrp_packet *pac_unsub = srrp_write_unsubscribe("/test-topic");
+    rc = send(fd, pac_unsub->raw, pac_unsub->len, 0);
+    srrp_free(pac_unsub);
     memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv unsub: %s", buf);

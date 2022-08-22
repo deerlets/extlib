@@ -1,7 +1,6 @@
 #ifndef __SRRP_H // simple request response protocol
 #define __SRRP_H
 
-#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -57,32 +56,33 @@ struct srrp_packet {
     uint16_t reqid;
     uint16_t reqcrc16; // reqcrc16 when leader is '<'
     const char header[SRRP_HEADER_LEN];
-    size_t header_len;
+    uint32_t header_len;
     const char *data;
-    size_t data_len;
+    uint32_t data_len;
     char raw[0]; // alloc length = sizeof(struct srrp_packet) + strlen(raw)
 };
 
-// the retval imply that the caller should free it
-struct srrp_packet *srrp_read_one_packet(const char *buf);
 void srrp_free(struct srrp_packet *pac);
 
-int /*nr*/ srrp_write_request(
-    char *buf, size_t size, uint16_t reqid,
-    const char *header, const char *data);
+// the retval imply that the caller should free it
 
-int /*nr*/ srrp_write_response(
-    char *buf, size_t size, uint16_t reqid, uint16_t reqcrc16,
-    const char *header, const char *data);
+struct srrp_packet *
+srrp_read_one_packet(const char *buf);
 
-int /*nr*/ srrp_write_subscribe(
-    char *buf, size_t size, const char *header, const char *ctrl);
+struct srrp_packet *
+srrp_write_request(uint16_t reqid, const char *header, const char *data);
 
-int /*nr*/ srrp_write_unsubscribe(
-    char *buf, size_t size, const char *header);
+struct srrp_packet *
+srrp_write_response(uint16_t reqid, uint16_t reqcrc16, const char *header, const char *data);
 
-int /*nr*/ srrp_write_publish(
-    char *buf, size_t size, const char *header, const char *data);
+struct srrp_packet *
+srrp_write_subscribe(const char *header, const char *ctrl);
+
+struct srrp_packet *
+srrp_write_unsubscribe(const char *header);
+
+struct srrp_packet *
+srrp_write_publish(const char *header, const char *data);
 
 int srrp_next_packet_offset(const char *buf);
 
