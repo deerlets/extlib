@@ -237,12 +237,8 @@ static void topic_pub_handler(struct apicore *core, struct api_topic_msg *tmsg)
     struct api_topic *topic = find_topic(
         &core->topics, tmsg->pac->header, tmsg->pac->header_len);
     if (topic) {
-        char *tmp = calloc(1, tmsg->pac->len);
-        srrp_write_publish(tmp, tmsg->pac->len, tmsg->pac->header, tmsg->pac->data);
-        for (int i = 0; i < topic->nfds; i++) {
-            apicore_send(core, topic->fds[i], tmp, tmsg->pac->len);
-        }
-        free(tmp);
+        for (int i = 0; i < topic->nfds; i++)
+            apicore_send(core, topic->fds[i], tmsg->pac->raw, tmsg->pac->len);
     } else {
         // do nothing, just drop this msg
         LOG_DEBUG("drop @: %s%s", tmsg->pac->header, tmsg->pac->data);

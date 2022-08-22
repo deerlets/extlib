@@ -44,6 +44,7 @@ extern "C" {
 #define SRRP_HEADER_DELIMITER ':'
 #define SRRP_DATA_DELIMITER '?'
 
+#define SRRP_HEADER_LEN 128
 #define SRRP_SEQNO_HIGH 966
 #define SRRP_LENGTH_MAX 4096
 #define SRRP_SUBSCRIBE_CACHE_MAX 1024
@@ -55,7 +56,7 @@ struct srrp_packet {
     uint16_t len;
     uint16_t reqid;
     uint16_t reqcrc16; // reqcrc16 when leader is '<'
-    const char *header;
+    const char header[SRRP_HEADER_LEN];
     size_t header_len;
     const char *data;
     size_t data_len;

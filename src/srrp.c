@@ -28,7 +28,7 @@ struct srrp_packet *__srrp_read_one_request(const char *buf, size_t size)
     if (header_delimiter == NULL || data_delimiter == NULL)
         return NULL;
 
-    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
     memcpy(pac->raw, buf, len);
     pac->leader = leader;
     pac->seat = seat;
@@ -38,9 +38,8 @@ struct srrp_packet *__srrp_read_one_request(const char *buf, size_t size)
 
     const char *header = header_delimiter + 1;
     const char *data = data_delimiter + 1;
-    pac->header = pac->raw + (header - buf);
     pac->header_len = data_delimiter - header;
-    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    memcpy((void *)pac->header, header, pac->header_len);
     pac->data = pac->raw + (data - buf);
     pac->data_len = buf + strlen(buf) - data;
 
@@ -69,7 +68,7 @@ struct srrp_packet *__srrp_read_one_response(const char *buf, size_t size)
     if (header_delimiter == NULL || data_delimiter == NULL)
         return NULL;
 
-    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
     memcpy(pac->raw, buf, len);
     pac->leader = leader;
     pac->seat = seat;
@@ -80,9 +79,8 @@ struct srrp_packet *__srrp_read_one_response(const char *buf, size_t size)
 
     const char *header = header_delimiter + 1;
     const char *data = data_delimiter + 1;
-    pac->header = pac->raw + (header - buf);
     pac->header_len = data_delimiter - header;
-    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    memcpy((void *)pac->header, header, pac->header_len);
     pac->data = pac->raw + (data - buf);
     pac->data_len = buf + strlen(buf) - data;
 
@@ -112,7 +110,7 @@ struct srrp_packet *__srrp_read_one_subpub(const char *buf, size_t size)
     if (header_delimiter == NULL || data_delimiter == NULL)
         return NULL;
 
-    struct srrp_packet *pac = malloc(sizeof(*pac) + len);
+    struct srrp_packet *pac = calloc(1, sizeof(*pac) + len);
     memcpy(pac->raw, buf, len);
     pac->leader = leader;
     pac->seat = seat;
@@ -121,9 +119,8 @@ struct srrp_packet *__srrp_read_one_subpub(const char *buf, size_t size)
 
     const char *header = header_delimiter + 1;
     const char *data = data_delimiter + 1;
-    pac->header = pac->raw + (header - buf);
     pac->header_len = data_delimiter - header;
-    pac->raw[header - buf + pac->header_len] = 0; // change ? to \0
+    memcpy((void *)pac->header, header, pac->header_len);
     pac->data = pac->raw + (data - buf);
     pac->data_len = buf + strlen(buf) - data;
 
