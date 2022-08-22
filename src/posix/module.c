@@ -6,7 +6,7 @@
 #include <string.h>
 #include <dlfcn.h>
 #include <dirent.h>
-#include "listx.h"
+#include "list.h"
 
 #define MODULE_ERRMSG_SIZE 512
 
