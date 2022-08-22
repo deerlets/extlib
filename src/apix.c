@@ -49,12 +49,10 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             req->ts_create = time(0);
             req->ts_send = 0;
             req->fd = sinkfd->fd;
-            char *tmp = calloc(1, strlen(pac.header) + strlen(pac.data) + 1);
-            memcpy(tmp, pac.header, strlen(pac.header));
-            memcpy(tmp + strlen(pac.header), pac.data, strlen(pac.data));
-            req->crc16 = crc16(tmp, strlen(tmp));
-            free(tmp);
+            req->crc16 = crc16(pac.header, strlen(pac.header));
+            req->crc16 = crc16_crc(req->crc16, pac.data, strlen(pac.data));
             req->leader = pac.leader;
+            req->reqid = pac.reqid;
             snprintf(req->header, sizeof(req->header), "%s", pac.header);
             req->content = strdup(pac.data);
             INIT_LIST_HEAD(&req->node);
@@ -66,8 +64,9 @@ static void parse_packet(struct apicore *core, struct sinkfd *sinkfd)
             memcpy(resp->raw, atbuf_read_pos(sinkfd->rxbuf), nr);
             resp->raw_len = nr;
             resp->fd = sinkfd->fd;
-            resp->crc16_req = pac.crc16_req;
+            resp->reqcrc16 = pac.reqcrc16;
             resp->leader = pac.leader;
+            resp->reqid = pac.reqid;
             snprintf(resp->header, sizeof(resp->header), "%s", pac.header);
             resp->content = strdup(pac.data);
             INIT_LIST_HEAD(&resp->node);
@@ -347,7 +346,7 @@ static void handle_request(struct apicore *core)
             continue;
         }
 
-        LOG_INFO("poll >: %s%s", pos->header, pos->content);
+        LOG_INFO("poll >: %.4x%s%s", pos->reqid, pos->header, pos->content);
         if (strcmp(pos->header, APICORE_SERVICE_ADD) == 0) {
             service_add_handler(core, pos->content, pos->fd);
             api_request_delete(pos);
@@ -361,12 +360,19 @@ static void handle_request(struct apicore *core)
             struct api_service *serv = find_service(
                 &core->services, pos->header, strlen(pos->header));
             if (serv) {
+                // change reqid
+                char *tmp = calloc(1, pos->raw_len);
+                srrp_write_request(tmp, pos->raw_len, pos->fd,
+                                   pos->header, pos->content);
+
                 assert(serv->sinkfd->sink->ops.send);
                 serv->sinkfd->sink->ops.send(
                     serv->sinkfd->sink, serv->sinkfd->fd,
-                    pos->raw, pos->raw_len);
+                    tmp, pos->raw_len);
                 pos->state = API_REQUEST_ST_WAIT_RESPONSE;
                 pos->ts_send = time(0);
+
+                free(tmp);
             } else {
                 apicore_send(core, pos->fd, "SERVICE NOT FOUND", 17);
                 api_request_delete(pos);
@@ -379,13 +385,21 @@ static void handle_response(struct apicore *core)
 {
     struct api_response *pos, *n;
     list_for_each_entry_safe(pos, n, &core->responses, node) {
-        LOG_INFO("poll <: %s%s", pos->header, pos->content);
+        LOG_INFO("poll <: %.4x%s%s", pos->reqid, pos->header, pos->content);
         struct api_request *pos_req, *n_req;
         list_for_each_entry_safe(pos_req, n_req, &core->requests, node) {
-            if (pos_req->crc16 == pos->crc16_req &&
-                strcmp(pos_req->header, pos->header) == 0) {
-                apicore_send(core, pos_req->fd, pos->raw, pos->raw_len);
+            if (pos_req->crc16 == pos->reqcrc16 &&
+                strcmp(pos_req->header, pos->header) == 0 &&
+                pos_req->fd == pos->reqid) {
+                // restore reqid
+                char *tmp = calloc(1, pos->raw_len);
+                srrp_write_request(tmp, pos->raw_len, pos_req->reqid,
+                                   pos->header, pos->content);
+
+                apicore_send(core, pos_req->fd, tmp, pos->raw_len);
                 api_request_delete(pos_req);
+
+                free(tmp);
                 break;
             }
         }

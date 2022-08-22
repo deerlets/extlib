@@ -44,7 +44,7 @@ static int test()
         char req[256];
         int nreq = 0;
 
-        nreq = srrp_write_request(req, sizeof(req), "/0012/echo", "{msg:'hello'}");
+        nreq = srrp_write_request(req, sizeof(req), fd, "/0012/echo", "{msg:'hello'}");
         nr = send(fd, req, nreq, 0);
         LOG_INFO("%d, %s", nr, req);
         bzero(buf, sizeof(buf));

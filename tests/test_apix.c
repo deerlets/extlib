@@ -44,7 +44,7 @@ static void *client_thread(void *args)
 
     char req[256] = {0};
     srrp_write_request(
-        req, sizeof(req), "/hello/x",
+        req, sizeof(req), fd, "/hello/x",
         "{name:'yon',age:'18',equip:['hat','shoes']}");
 
     rc = send(fd, req, strlen(req) + 1, 0);
@@ -81,16 +81,11 @@ static void *server_thread(void *args)
     char resp[256] = {0};
 
     srrp_write_request(
-        req_add, sizeof(req_add), "/apicore/service/add",
+        req_add, sizeof(req_add), fd, "/apicore/service/add",
         "{header:'/hello/x'}");
     srrp_write_request(
-        req_del, sizeof(req_del), "/apicore/service/del",
+        req_del, sizeof(req_del), fd, "/apicore/service/del",
         "{header:'/hello/x'}");
-    const char *tmp = "/hello/x{name:'yon',age:'18',equip:['hat','shoes']}";
-    uint16_t crc = crc16(tmp, strlen(tmp));
-    srrp_write_response(
-        resp, sizeof(resp), crc, "/hello/x",
-        "{err:0,errmsg:'succ',data:{msg:'world'}}");
 
     rc = send(fd, req_add, strlen(req_add) + 1, 0);
     memset(buf, 0, sizeof(buf));
@@ -99,6 +94,14 @@ static void *server_thread(void *args)
 
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
+    struct srrp_packet pac;
+    int nr = srrp_read_one_packet(buf, sizeof(buf), &pac);
+    assert_true(nr == pac.len);
+    uint16_t crc = crc16(pac.header, strlen(pac.header));
+    crc = crc16_crc(crc, pac.data, strlen(pac.data));
+    srrp_write_response(
+        resp, sizeof(resp), pac.reqid, crc, pac.header,
+        "{err:0,errmsg:'succ',data:{msg:'world'}}");
     rc = send(fd, resp, strlen(resp) + 1, 0);
 
     rc = send(fd, req_del, strlen(req_del) + 1, 0);

@@ -37,7 +37,7 @@ static void test_api_serial(void **status)
         char req[256];
         int nreq = 0;
 
-        nreq = srrp_write_request(req, sizeof(req), "/0012/echo", "{msg:'hello'}");
+        nreq = srrp_write_request(req, sizeof(req), fd, "/0012/echo", "{msg:'hello'}");
         nr = apicore_send(core, fd, req, nreq);
         LOG_INFO("%d, %s", nr, req);
         bzero(buf, sizeof(buf));

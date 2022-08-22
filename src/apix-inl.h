@@ -91,6 +91,7 @@ struct api_request {
     int fd;
     uint16_t crc16;
     char leader;
+    uint16_t reqid;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, need free
     struct list_head node;
@@ -101,7 +102,8 @@ struct api_response {
     size_t raw_len;
 
     int fd;
-    uint16_t crc16_req;
+    uint16_t reqid;
+    uint16_t reqcrc16;
     char leader;
     char header[API_HEADER_SIZE];
     char *content; // dynamic alloc, need free

@@ -19,14 +19,15 @@ static void test_srrp_request_reponse(void **status)
     char resp[256] = {0};
 
     srrp_write_request(
-        req, sizeof(req), "/hello/x",
+        req, sizeof(req), 0x8888, "/hello/x",
         "{name:'yon',age:'18',equip:['hat','shoes']}");
 
     nr = srrp_read_one_packet(req, sizeof(req), &pac);
     assert_true(nr == strlen(req) + 1);
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(req));
+    assert_true(pac.len == nr);
+    assert_true(pac.reqid == 0x8888);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -34,15 +35,16 @@ static void test_srrp_request_reponse(void **status)
     uint16_t crc = crc16(pac.header, strlen(pac.header));
     crc = crc16_crc(crc, pac.data, strlen(pac.data));
     srrp_write_response(
-        resp, sizeof(resp), crc, "/hello/x",
+        resp, sizeof(resp), 0x8888, crc, "/hello/x",
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
 
     nr = srrp_read_one_packet(resp, sizeof(resp), &pac);
     assert_true(nr == strlen(resp) + 1);
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(resp));
-    assert_true(pac.crc16_req == crc);
+    assert_true(pac.len == nr);
+    assert_true(pac.reqid == 0x8888);
+    assert_true(pac.reqcrc16 == crc);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -57,7 +59,8 @@ static void test_srrp_request_reponse(void **status)
     assert_true(nr == strlen(req) + 1);
     assert_true(pac.leader == '>');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(req));
+    assert_true(pac.len == nr);
+    assert_true(pac.reqid == 0x8888);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -66,8 +69,9 @@ static void test_srrp_request_reponse(void **status)
     assert_true(nr == strlen(resp) + 1);
     assert_true(pac.leader == '<');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(resp));
-    assert_true(pac.crc16_req == crc);
+    assert_true(pac.len == nr);
+    assert_true(pac.reqid == 0x8888);
+    assert_true(pac.reqcrc16 == crc);
     assert_true(strcmp(pac.header, "/hello/x") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -92,7 +96,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(nr == strlen(sub) + 1);
     assert_true(pac.leader == '#');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(sub));
+    assert_true(pac.len == nr);
     assert_true(strcmp(pac.header, "/motor/speed") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -101,7 +105,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(nr == strlen(unsub) + 1);
     assert_true(pac.leader == '%');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(unsub));
+    assert_true(pac.len == nr);
     assert_true(strcmp(pac.header, "/motor/speed") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -110,7 +114,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(nr == strlen(pub) + 1);
     assert_true(pac.leader == '@');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(pub));
+    assert_true(pac.len == nr);
     assert_true(strcmp(pac.header, "/motor/speed") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -125,7 +129,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(nr == strlen(sub) + 1);
     assert_true(pac.leader == '#');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(sub));
+    assert_true(pac.len == nr);
     assert_true(strcmp(pac.header, "/motor/speed") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
@@ -134,7 +138,7 @@ static void test_srrp_subscribe_publish(void **status)
     assert_true(nr == strlen(pub) + 1);
     assert_true(pac.leader == '@');
     assert_true(pac.seat == '$');
-    assert_true(pac.len == strlen(pub));
+    assert_true(pac.len == nr);
     assert_true(strcmp(pac.header, "/motor/speed") == 0);
     free((void *)pac.header);
     free((void *)pac.data);
