@@ -95,7 +95,7 @@ static void *server_thread(void *args)
     crc = crc16_crc(crc, rxpac->data, rxpac->data_len);
     struct srrp_packet *txpac;
     txpac = srrp_write_response(
-        rxpac->reqid, crc, rxpac->header,
+        rxpac->sttid, crc, rxpac->header,
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
     rc = send(fd, txpac->raw, txpac->len, 0);
     srrp_free(rxpac);

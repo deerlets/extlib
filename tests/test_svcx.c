@@ -14,7 +14,7 @@ int on_echo(struct srrp_packet *req, struct srrp_packet **resp)
 {
     uint16_t crc = crc16(req->header, req->header_len);
     crc = crc16_crc(crc, req->data, req->data_len);
-    *resp = srrp_write_response(req->reqid, crc, req->header, "{msg:'world'}");
+    *resp = srrp_write_response(req->sttid, crc, req->header, "{msg:'world'}");
     return 0;
 }
 

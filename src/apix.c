@@ -319,7 +319,7 @@ static void handle_request(struct apibus *bus)
             continue;
         }
 
-        LOG_INFO("poll >: %.4x:%s?%s", pos->pac->reqid, pos->pac->header, pos->pac->data);
+        LOG_INFO("poll >: %.4x:%s?%s", pos->pac->sttid, pos->pac->header, pos->pac->data);
         if (strcmp(pos->pac->header, APIBUS_STATION_ADD) == 0) {
             station_add_handler(bus, pos->pac->data, pos->fd);
             api_request_delete(pos);
@@ -332,7 +332,7 @@ static void handle_request(struct apibus *bus)
         } else {
             struct api_station *stt = find_station(&bus->stations, pos->pac->header);
             if (stt) {
-                // change reqid
+                // change sttid
                 struct srrp_packet *pac = srrp_write_request(
                     pos->fd, pos->pac->header, pos->pac->data);
 
@@ -356,15 +356,15 @@ static void handle_response(struct apibus *bus)
 {
     struct api_response *pos, *n;
     list_for_each_entry_safe(pos, n, &bus->responses, node) {
-        LOG_INFO("poll <: %.4x:%s?%s", pos->pac->reqid, pos->pac->header, pos->pac->data);
+        LOG_INFO("poll <: %.4x:%s?%s", pos->pac->sttid, pos->pac->header, pos->pac->data);
         struct api_request *pos_req, *n_req;
         list_for_each_entry_safe(pos_req, n_req, &bus->requests, node) {
             if (pos_req->crc16 == pos->pac->reqcrc16 &&
                 strcmp(pos_req->pac->header, pos->pac->header) == 0 &&
-                pos_req->fd == pos->pac->reqid) {
-                // restore reqid
+                pos_req->fd == pos->pac->sttid) {
+                // restore sttid
                 struct srrp_packet *pac = srrp_write_response(
-                    pos_req->pac->reqid, pos->pac->reqcrc16,
+                    pos_req->pac->sttid, pos->pac->reqcrc16,
                     pos->pac->header, pos->pac->data);
 
                 apibus_send(bus, pos_req->fd, pac->raw, pos->pac->len);

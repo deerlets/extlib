@@ -53,7 +53,7 @@ struct srrp_packet {
     char seat;
     uint16_t seqno;
     uint16_t len;
-    uint16_t reqid;
+    uint16_t sttid;
     uint16_t reqcrc16; // reqcrc16 when leader is '<'
     const char header[SRRP_HEADER_LEN];
     uint32_t header_len;
@@ -70,10 +70,10 @@ struct srrp_packet *
 srrp_read_one_packet(const char *buf);
 
 struct srrp_packet *
-srrp_write_request(uint16_t reqid, const char *header, const char *data);
+srrp_write_request(uint16_t sttid, const char *header, const char *data);
 
 struct srrp_packet *
-srrp_write_response(uint16_t reqid, uint16_t reqcrc16, const char *header, const char *data);
+srrp_write_response(uint16_t sttid, uint16_t reqcrc16, const char *header, const char *data);
 
 struct srrp_packet *
 srrp_write_subscribe(const char *header, const char *ctrl);

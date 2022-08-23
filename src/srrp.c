@@ -10,7 +10,7 @@
 
 #define SEQNO_MAX_LEN 32
 #define LENGTH_MAX_LEN 32
-#define REQID_MAX_LEN 32
+#define STTID_MAX_LEN 32
 
 void srrp_free(struct srrp_packet *pac)
 {
@@ -23,10 +23,10 @@ __srrp_read_one_request(const char *buf)
     assert(buf[0] == SRRP_REQUEST_LEADER);
 
     char leader, seat;
-    uint32_t seqno, len, reqid;
+    uint32_t seqno, len, sttid;
 
     // FIXME: shall we use "%c%x,%c,%4x,%4x:%[^{}]%s" to parse header and data ?
-    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x:", &leader, &seqno, &seat, &len, &reqid);
+    int cnt = sscanf(buf, "%c%x,%c,%4x,%4x:", &leader, &seqno, &seat, &len, &sttid);
     if (cnt != 5) return NULL;
 
     const char *header_delimiter = strstr(buf, ":/");
@@ -40,7 +40,7 @@ __srrp_read_one_request(const char *buf)
     pac->seat = seat;
     pac->seqno = seqno;
     pac->len = len;
-    pac->reqid = reqid;
+    pac->sttid = sttid;
 
     const char *header = header_delimiter + 1;
     const char *data = data_delimiter + 1;
@@ -63,11 +63,11 @@ __srrp_read_one_response(const char *buf)
     assert(buf[0] == SRRP_RESPONSE_LEADER);
 
     char leader, seat;
-    uint32_t seqno, len, reqid, reqcrc16;
+    uint32_t seqno, len, sttid, reqcrc16;
 
     // FIXME: shall we use "%c%x,%c,%4x,%4x:%x%[^{}]%s" to parse header and data ?
     int cnt = sscanf(buf, "%c%x,%c,%4x,%4x,%x:/",
-                     &leader, &seqno, &seat, &len, &reqid, &reqcrc16);
+                     &leader, &seqno, &seat, &len, &sttid, &reqcrc16);
     if (cnt != 6) return NULL;
 
     const char *header_delimiter = strstr(buf, ":/");
@@ -81,7 +81,7 @@ __srrp_read_one_response(const char *buf)
     pac->seat = seat;
     pac->seqno = seqno;
     pac->len = len;
-    pac->reqid = reqid;
+    pac->sttid = sttid;
     pac->reqcrc16 = reqcrc16;
 
     const char *header = header_delimiter + 1;
@@ -157,7 +157,7 @@ srrp_read_one_packet(const char *buf)
 }
 
 struct srrp_packet *
-srrp_write_request(uint16_t reqid, const char *header, const char *data)
+srrp_write_request(uint16_t sttid, const char *header, const char *data)
 {
     int len = 15 + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
@@ -166,14 +166,14 @@ srrp_write_request(uint16_t reqid, const char *header, const char *data)
     assert(pac);
 
     int nr = snprintf(pac->raw, len, ">0,$,%.4x,%.4x:%s?%s",
-                      (uint32_t)len, reqid, header, data);
+                      (uint32_t)len, sttid, header, data);
     assert(nr + 1 == len);
 
     pac->leader = SRRP_REQUEST_LEADER;
     pac->seat = '$';
     pac->seqno = 0;
     pac->len = len;
-    pac->reqid = reqid;
+    pac->sttid = sttid;
     snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
     pac->header_len = strlen(header);
     pac->data_len = strlen(data);
@@ -182,7 +182,7 @@ srrp_write_request(uint16_t reqid, const char *header, const char *data)
 }
 
 struct srrp_packet *
-srrp_write_response(uint16_t reqid, uint16_t reqcrc16, const char *header, const char *data)
+srrp_write_response(uint16_t sttid, uint16_t reqcrc16, const char *header, const char *data)
 {
     int len = 15 + 5/*crc16*/ + strlen(header) + 1 + strlen(data) + 1/*stop*/;
     assert(len < SRRP_LENGTH_MAX - 4/*crc16*/);
@@ -191,14 +191,14 @@ srrp_write_response(uint16_t reqid, uint16_t reqcrc16, const char *header, const
     assert(pac);
 
     int nr = snprintf(pac->raw, len, "<0,$,%.4x,%.4x,%.4x:%s?%s",
-                      (uint32_t)len, reqid, reqcrc16, header, data);
+                      (uint32_t)len, sttid, reqcrc16, header, data);
     assert(nr + 1 == len);
 
     pac->leader = SRRP_RESPONSE_LEADER;
     pac->seat = '$';
     pac->seqno = 0;
     pac->len = len;
-    pac->reqid = reqid;
+    pac->sttid = sttid;
     pac->reqcrc16 = reqcrc16;
     snprintf((char *)pac->header, sizeof(pac->header), "%s", header);
     pac->header_len = strlen(header);

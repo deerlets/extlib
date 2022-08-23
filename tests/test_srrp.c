@@ -27,7 +27,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(rxpac->len == strlen(txpac->raw) + 1);
     assert_true(rxpac->leader == '>');
     assert_true(rxpac->seat == '$');
-    assert_true(rxpac->reqid == 0x8888);
+    assert_true(rxpac->sttid == 0x8888);
     assert_true(memcmp(rxpac->header, "/hello/x", rxpac->header_len) == 0);
     uint16_t crc = crc16(rxpac->header, rxpac->header_len);
     crc = crc16_crc(crc, rxpac->data, rxpac->data_len);
@@ -43,7 +43,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(rxpac->len == strlen(txpac->raw) + 1);
     assert_true(rxpac->leader == '<');
     assert_true(rxpac->seat == '$');
-    assert_true(rxpac->reqid == 0x8888);
+    assert_true(rxpac->sttid == 0x8888);
     assert_true(rxpac->reqcrc16 == crc);
     assert_true(memcmp(rxpac->header, "/hello/x", rxpac->header_len) == 0);
     memcpy(buf + strlen(buf) + 1, txpac->raw, strlen(txpac->raw));
@@ -55,7 +55,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(rxpac);
     assert_true(rxpac->leader == '>');
     assert_true(rxpac->seat == '$');
-    assert_true(rxpac->reqid == 0x8888);
+    assert_true(rxpac->sttid == 0x8888);
     assert_true(memcmp(rxpac->header, "/hello/x", rxpac->header_len) == 0);
     int len = rxpac->len;
     srrp_free(rxpac);
@@ -64,7 +64,7 @@ static void test_srrp_request_reponse(void **status)
     assert_true(rxpac);
     assert_true(rxpac->leader == '<');
     assert_true(rxpac->seat == '$');
-    assert_true(rxpac->reqid == 0x8888);
+    assert_true(rxpac->sttid == 0x8888);
     assert_true(rxpac->reqcrc16 == crc);
     assert_true(memcmp(rxpac->header, "/hello/x", rxpac->header_len) == 0);
     srrp_free(rxpac);
