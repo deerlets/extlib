@@ -1,6 +1,5 @@
-#include "apix-inl.h"
-#include "apix-posix.h"
-#include "atbuf.h"
+#if defined __unix__ || defined __linux__ || defined __APPLE__
+
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
@@ -8,30 +7,33 @@
 #include <stdio.h>
 #include <strings.h>
 #include <time.h>
-#include <sys/select.h>
-#include "stddefx.h"
-#include "list.h"
-#include "log.h"
-
-#if defined __unix__ || defined __linux__ || defined __APPLE__
 
 #include <unistd.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include <fcntl.h>
 #include <termios.h>
 
-// unix domain socket
+#include "apix-inl.h"
+#include "apix-posix.h"
+#include "atbuf.h"
+#include "stddefx.h"
+#include "list.h"
+#include "log.h"
 
-static struct unix_sink {
+struct posix_sink {
     struct apisink sink;
     // for select
     fd_set fds;
     int nfds;
-} __unix_sink;
+};
+
+// unix domain socket
+
+static struct posix_sink __unix_sink;
 
 static int unix_open(struct apisink *sink, const char *addr)
 {
@@ -65,7 +67,7 @@ static int unix_open(struct apisink *sink, const char *addr)
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
 
-    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
+    struct posix_sink *unix_sink = container_of(sink, struct posix_sink, sink);
     FD_SET(fd, &unix_sink->fds);
     unix_sink->nfds = fd + 1;
 
@@ -97,7 +99,7 @@ static int unix_recv(struct apisink *sink, int fd, void *buf, size_t size)
 
 static int unix_poll(struct apisink *sink)
 {
-    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
+    struct posix_sink *unix_sink = container_of(sink, struct posix_sink, sink);
 
     struct timeval tv = { 0, 0 };
     fd_set recvfds;
@@ -167,7 +169,7 @@ static apisink_ops_t unix_ops = {
 
 // tcp
 
-static struct unix_sink __tcp_sink;
+static struct posix_sink __tcp_sink;
 
 static int tcp_open(struct apisink *sink, const char *addr)
 {
@@ -210,7 +212,7 @@ static int tcp_open(struct apisink *sink, const char *addr)
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
 
-    struct unix_sink *tcp_sink = container_of(sink, struct unix_sink, sink);
+    struct posix_sink *tcp_sink = container_of(sink, struct posix_sink, sink);
     FD_SET(fd, &tcp_sink->fds);
     tcp_sink->nfds = fd + 1;
 
@@ -238,7 +240,7 @@ static apisink_ops_t tcp_ops = {
 
 // serial
 
-static struct unix_sink __serial_sink;
+static struct posix_sink __serial_sink;
 
 static int serial_open(struct apisink *sink, const char *addr)
 {
@@ -252,7 +254,7 @@ static int serial_open(struct apisink *sink, const char *addr)
     list_add(&sinkfd->node_sink, &sink->sinkfds);
     list_add(&sinkfd->node_core, &sink->core->sinkfds);
 
-    struct unix_sink *serial_sink = container_of(sink, struct unix_sink, sink);
+    struct posix_sink *serial_sink = container_of(sink, struct posix_sink, sink);
     FD_SET(fd, &serial_sink->fds);
     serial_sink->nfds = fd + 1;
 
@@ -343,7 +345,7 @@ static int serial_recv(struct apisink *sink, int fd, void *buf, size_t size)
 
 static int serial_poll(struct apisink *sink)
 {
-    struct unix_sink *unix_sink = container_of(sink, struct unix_sink, sink);
+    struct posix_sink *unix_sink = container_of(sink, struct posix_sink, sink);
 
     struct timeval tv = { 0, 0 };
     fd_set recvfds;
