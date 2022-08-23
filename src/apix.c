@@ -99,6 +99,7 @@ static void clear_unalive_serivce(struct apicore *core)
     struct api_service *pos, *n;
     list_for_each_entry_safe(pos, n, &core->services, node) {
         if (time(0) > pos->ts_alive + APICORE_SERVICE_ALIVE_TIMEOUT) {
+            LOG_DEBUG("clear unalive service: %s", pos->header);
             assert(pos->sinkfd->sink->ops.send);
             pos->sinkfd->sink->ops.send(
                 pos->sinkfd->sink, pos->sinkfd->fd,
@@ -380,6 +381,10 @@ static void handle_response(struct apicore *core)
                 break;
             }
         }
+
+        struct api_service *serv = find_service(
+            &core->services, pos->pac->header, strlen(pos->pac->header));
+        if (serv) serv->ts_alive = time(0);
         api_response_delete(pos);
     }
 }
