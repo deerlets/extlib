@@ -34,13 +34,13 @@ struct ioctl_serial_param {
     char stop;
 };
 
-#define apicore_open_stm32_tcp(core, addr) \
-    apicore_open(core, APISINK_STM32_TCP, addr)
-#define apicore_open_stm32_serial(core, addr) \
-    apicore_open(core, APISINK_STM32_SERIAL, addr)
+#define apibus_open_stm32_tcp(bus, addr) \
+    apibus_open(bus, APISINK_STM32_TCP, addr)
+#define apibus_open_stm32_serial(bus, addr) \
+    apibus_open(bus, APISINK_STM32_SERIAL, addr)
 
-int apicore_enable_stm32(struct apicore *core);
-void apicore_disable_stm32(struct apicore *core);
+int apibus_enable_stm32(struct apibus *bus);
+void apibus_disable_stm32(struct apibus *bus);
 
 #ifdef __cplusplus
 }

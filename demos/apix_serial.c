@@ -17,9 +17,9 @@
 
 static void test_api_serial(void **status)
 {
-    struct apicore *core = apicore_new();
-    apicore_enable_posix(core);
-    int fd = apicore_open_serial(core, SERIAL_ADDR);
+    struct apibus *bus = apibus_new();
+    apibus_enable_posix(bus);
+    int fd = apibus_open_serial(bus, SERIAL_ADDR);
     assert(fd != -1);
 
     struct ioctl_serial_param sp = {
@@ -28,24 +28,24 @@ static void test_api_serial(void **status)
         .parity = SERIAL_ARG_PARITY_N,
         .stop = SERIAL_ARG_STOP_1,
     };
-    int rc = apicore_ioctl(core, fd, 0, (unsigned long)&sp);
+    int rc = apibus_ioctl(bus, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
     for (int i = 0; i < 3; i++) {
         int nr = 0;
         char buf[256];
         struct srrp_packet *pac = srrp_write_request(fd, "/0012/echo", "{msg:'hello'}");
-        nr = apicore_send(core, fd, pac->raw, pac->len);
+        nr = apibus_send(bus, fd, pac->raw, pac->len);
         LOG_INFO("%d, %s", nr, pac->raw);
         bzero(buf, sizeof(buf));
         sleep(1);
-        nr = apicore_recv(core, fd, buf, sizeof(buf));
+        nr = apibus_recv(bus, fd, buf, sizeof(buf));
         LOG_INFO("%d, %s", nr, buf);
     }
 
-    apicore_close(core, fd);
-    apicore_disable_posix(core);
-    apicore_destroy(core);
+    apibus_close(bus, fd);
+    apibus_disable_posix(bus);
+    apibus_destroy(bus);
 }
 
 int main(void)

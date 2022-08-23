@@ -76,9 +76,9 @@ static void *server_thread(void *args)
     char buf[256] = {0};
 
     struct srrp_packet *pac_add = srrp_write_request(
-        fd, "/apicore/service/add", "{header:'/hello/x'}");
+        fd, "/apibus/service/add", "{header:'/hello/x'}");
     struct srrp_packet *pac_del = srrp_write_request(
-        fd, "/apicore/service/del", "{header:'/hello/x'}");
+        fd, "/apibus/service/del", "{header:'/hello/x'}");
 
     rc = send(fd, pac_add->raw, pac_add->len, 0);
     memset(buf, 0, sizeof(buf));
@@ -113,9 +113,9 @@ static void *server_thread(void *args)
 
 static void test_api_request_response(void **status)
 {
-    struct apicore *core = apicore_new();
-    apicore_enable_posix(core);
-    int fd = apicore_open_unix(core, UNIX_ADDR);
+    struct apibus *bus = apibus_new();
+    apibus_enable_posix(bus);
+    int fd = apibus_open_unix(bus, UNIX_ADDR);
 
     pthread_t server_pid;
     pthread_create(&server_pid, NULL, server_thread, NULL);
@@ -123,14 +123,14 @@ static void test_api_request_response(void **status)
     pthread_create(&client_pid, NULL, client_thread, NULL);
 
     while (client_finished == 0 || server_finished == 0)
-        apicore_poll(core);
+        apibus_poll(bus);
 
     pthread_join(client_pid, NULL);
     pthread_join(server_pid, NULL);
 
-    apicore_close(core, fd);
-    apicore_disable_posix(core);
-    apicore_destroy(core);
+    apibus_close(bus, fd);
+    apibus_disable_posix(bus);
+    apibus_destroy(bus);
 }
 
 static int publish_finished = 0;
@@ -227,9 +227,9 @@ static void *subscribe_thread(void *args)
 
 static void test_api_subscribe_publish(void **status)
 {
-    struct apicore *core = apicore_new();
-    apicore_enable_posix(core);
-    int fd = apicore_open_tcp(core, TCP_ADDR);
+    struct apibus *bus = apibus_new();
+    apibus_enable_posix(bus);
+    int fd = apibus_open_tcp(bus, TCP_ADDR);
 
     pthread_t subscribe_pid;
     pthread_create(&subscribe_pid, NULL, subscribe_thread, NULL);
@@ -237,14 +237,14 @@ static void test_api_subscribe_publish(void **status)
     pthread_create(&publish_pid, NULL, publish_thread, NULL);
 
     while (publish_finished == 0 || subscribe_finished == 0)
-        apicore_poll(core);
+        apibus_poll(bus);
 
     pthread_join(publish_pid, NULL);
     pthread_join(subscribe_pid, NULL);
 
-    apicore_close(core, fd);
-    apicore_disable_posix(core);
-    apicore_destroy(core);
+    apibus_close(bus, fd);
+    apibus_disable_posix(bus);
+    apibus_destroy(bus);
 }
 
 int main(void)

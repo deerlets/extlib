@@ -25,24 +25,24 @@ static struct opt opttab[] = {
     INIT_OPT_NONE(),
 };
 
-static void run_apicore()
+static void run_apibus()
 {
     struct opt *ud = find_opt("unix", opttab);
     struct opt *tcp = find_opt("tcp", opttab);
     struct opt *serial = find_opt("serial", opttab);
 
-    struct apicore *core = apicore_new();
-    apicore_enable_posix(core);
+    struct apibus *bus = apibus_new();
+    apibus_enable_posix(bus);
 
     int fd = 0;
     int rc = 0;
 
-    fd = apicore_open_unix(core, opt_string(ud));
+    fd = apibus_open_unix(bus, opt_string(ud));
     assert(fd != -1);
-    fd = apicore_open_tcp(core, opt_string(tcp));
+    fd = apibus_open_tcp(bus, opt_string(tcp));
     assert(fd != -1);
 
-    fd = apicore_open_serial(core, opt_string(serial));
+    fd = apibus_open_serial(bus, opt_string(serial));
     assert(fd != -1);
     struct ioctl_serial_param sp = {
         .baud = SERIAL_ARG_BAUD_115200,
@@ -50,22 +50,22 @@ static void run_apicore()
         .parity = SERIAL_ARG_PARITY_N,
         .stop = SERIAL_ARG_STOP_1,
     };
-    rc = apicore_ioctl(core, fd, 0, (unsigned long)&sp);
+    rc = apibus_ioctl(bus, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
     while (1) {
-        apicore_poll(core);
+        apibus_poll(bus);
     }
 
-    apicore_close(core, fd);
-    apicore_disable_posix(core);
-    apicore_destroy(core);
+    apibus_close(bus, fd);
+    apibus_disable_posix(bus);
+    apibus_destroy(bus);
 }
 
 int main(int argc, char *argv[])
 {
     log_set_level(LOG_LV_DEBUG);
     opt_init_from_arg(opttab, argc, argv);
-    run_apicore();
+    run_apibus();
     return 0;
 }

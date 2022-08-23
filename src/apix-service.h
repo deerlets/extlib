@@ -1,10 +1,10 @@
 #ifndef __APIX_SERVICE_H
 #define __APIX_SERVICE_H
 
-#define APICORE_SERVICE_ADD "/apicore/service/add"
-#define APICORE_SERVICE_DEL "/apicore/service/del"
-#define APICORE_SERVICE_ALIVE "/apicore/service/alive"
+#define APIBUS_SERVICE_ADD "/apibus/service/add"
+#define APIBUS_SERVICE_DEL "/apibus/service/del"
+#define APIBUS_SERVICE_ALIVE "/apibus/service/alive"
 
-#define APICORE_SERVICE_ALIVE_TIMEOUT 1800
+#define APIBUS_SERVICE_ALIVE_TIMEOUT 1800
 
 #endif
