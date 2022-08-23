@@ -71,11 +71,11 @@ static void parse_packet(struct apibus *bus, struct sinkfd *sinkfd)
 }
 
 static struct api_station *
-find_station(struct list_head *stations, const void *header, size_t len)
+find_station(struct list_head *stations, const char *stt_name)
 {
     struct api_station *pos;
     list_for_each_entry(pos, stations, node) {
-        if (memcmp(pos->header, header, len) == 0) {
+        if (memcmp(pos->name, stt_name, strlen(pos->name)) == 0) {
             return pos;
         }
     }
@@ -94,36 +94,34 @@ find_topic(struct list_head *topics, const void *header, size_t len)
     return NULL;
 }
 
-static void clear_unalive_serivce(struct apibus *bus)
+static void clear_unalive_station(struct apibus *bus)
 {
     struct api_station *pos, *n;
     list_for_each_entry_safe(pos, n, &bus->stations, node) {
         if (time(0) > pos->ts_alive + APIBUS_STATION_ALIVE_TIMEOUT) {
-            LOG_DEBUG("clear unalive station: %s", pos->header);
+            LOG_DEBUG("clear unalive station: %s", pos->name);
             assert(pos->sinkfd->sink->ops.send);
             pos->sinkfd->sink->ops.send(
                 pos->sinkfd->sink, pos->sinkfd->fd,
-                pos->header, strlen(pos->header));
+                pos->name, strlen(pos->name));
             list_del(&pos->node);
             free(pos);
         }
     }
 }
 
-static void station_add_handler(
-    struct apibus *bus, const char *content, int fd)
+static void station_add_handler(struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
-    char header[256] = {0};
-    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    char stt_name[API_HEADER_SIZE] = {0};
+    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
     json_object_delete(jo);
     if (rc != 0) {
         apibus_send(bus, fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(
-        &bus->stations, header, strlen(header));
+    struct api_station *stt = find_station(&bus->stations, stt_name);
 
     if (stt != NULL) {
         apibus_send(bus, fd, "DUP STATION", 11);
@@ -132,7 +130,7 @@ static void station_add_handler(
 
     stt = malloc(sizeof(*stt));
     memset(stt, 0, sizeof(*stt));
-    snprintf(stt->header, sizeof(stt->header), "%s", header);
+    snprintf(stt->name, sizeof(stt->name), "%s", stt_name);
     stt->ts_alive = time(0);
     stt->sinkfd = find_sinkfd_in_apibus(bus, fd);
     INIT_LIST_HEAD(&stt->node);
@@ -141,20 +139,18 @@ static void station_add_handler(
     apibus_send(bus, fd, "OK", 2);
 }
 
-static void station_del_handler(
-    struct apibus *bus, const char *content, int fd)
+static void station_del_handler(struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
-    char header[256] = {0};
-    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    char stt_name[API_HEADER_SIZE] = {0};
+    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
     json_object_delete(jo);
     if (rc != 0) {
         apibus_send(bus, fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(
-        &bus->stations, header, strlen(header));
+    struct api_station *stt = find_station(&bus->stations, stt_name);
 
     if (stt == NULL || stt->sinkfd->fd != fd) {
         apibus_send(bus, fd, "STATION NOT FOUND", 17);
@@ -165,20 +161,18 @@ static void station_del_handler(
     }
 }
 
-static void station_alive_handler(
-    struct apibus *bus, const char *content, int fd)
+static void station_alive_handler(struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
-    char header[256] = {0};
-    int rc = json_get_string(jo, "/header", header, sizeof(header));
+    char stt_name[API_HEADER_SIZE] = {0};
+    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
     json_object_delete(jo);
     if (rc != 0) {
         apibus_send(bus, fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(
-        &bus->stations, header, strlen(header));
+    struct api_station *stt = find_station(&bus->stations, stt_name);
 
     if (stt == NULL || stt->sinkfd->fd != fd) {
         apibus_send(bus, fd, "STATION NOT FOUND", 17);
@@ -193,7 +187,7 @@ static void topic_sub_handler(struct apibus *bus, struct api_topic_msg *tmsg)
     struct api_topic *topic = NULL;
     struct api_topic *pos;
     list_for_each_entry(pos, &bus->topics, node) {
-        if (strcmp(topic->header, tmsg->pac->header) == 0) {
+        if (memcmp(topic->header, tmsg->pac->header, strlen(topic->header)) == 0) {
             topic = pos;
             break;
         }
@@ -336,8 +330,7 @@ static void handle_request(struct apibus *bus)
             station_alive_handler(bus, pos->pac->data, pos->fd);
             api_request_delete(pos);
         } else {
-            struct api_station *stt = find_station(
-                &bus->stations, pos->pac->header, strlen(pos->pac->header));
+            struct api_station *stt = find_station(&bus->stations, pos->pac->header);
             if (stt) {
                 // change reqid
                 struct srrp_packet *pac = srrp_write_request(
@@ -382,8 +375,7 @@ static void handle_response(struct apibus *bus)
             }
         }
 
-        struct api_station *stt = find_station(
-            &bus->stations, pos->pac->header, strlen(pos->pac->header));
+        struct api_station *stt = find_station(&bus->stations, pos->pac->header);
         if (stt) stt->ts_alive = time(0);
         api_response_delete(pos);
     }
@@ -448,7 +440,7 @@ int apibus_poll(struct apibus *bus)
     handle_topic_msg(bus);
 
     // clear station which is not alive
-    clear_unalive_serivce(bus);
+    clear_unalive_station(bus);
 
     return 0;
 }

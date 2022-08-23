@@ -99,7 +99,7 @@ struct api_response {
 };
 
 struct api_station {
-    char header[API_HEADER_SIZE];
+    char name[API_HEADER_SIZE];
     uint64_t ts_alive;
     struct sinkfd *sinkfd;
     struct list_head node;
