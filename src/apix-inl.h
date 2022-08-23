@@ -78,7 +78,7 @@ struct sinkfd *find_sinkfd_in_apisink(struct apisink *sink, int fd);
 /*
  * api_request
  * api_response
- * api_service
+ * api_station
  * api_topic
  */
 
@@ -98,7 +98,7 @@ struct api_response {
     struct list_head node;
 };
 
-struct api_service {
+struct api_station {
     char header[API_HEADER_SIZE];
     uint64_t ts_alive;
     struct sinkfd *sinkfd;
@@ -146,7 +146,7 @@ struct api_topic {
 struct apibus {
     struct list_head requests;
     struct list_head responses;
-    struct list_head services;
+    struct list_head stations;
     struct list_head topic_msgs;
     struct list_head topics;
     struct list_head sinkfds;

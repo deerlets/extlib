@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include "apix.h"
 #include "apix-posix.h"
+#include "apix-station.h"
 #include "srrp.h"
 #include "crc16.h"
 #include "log.h"
@@ -76,9 +77,9 @@ static void *server_thread(void *args)
     char buf[256] = {0};
 
     struct srrp_packet *pac_add = srrp_write_request(
-        fd, "/apibus/service/add", "{header:'/hello/x'}");
+        fd, APIBUS_STATION_ADD, "{stt_name:'/hello'}");
     struct srrp_packet *pac_del = srrp_write_request(
-        fd, "/apibus/service/del", "{header:'/hello/x'}");
+        fd, APIBUS_STATION_DEL, "{stt_name:'/hello'}");
 
     rc = send(fd, pac_add->raw, pac_add->len, 0);
     memset(buf, 0, sizeof(buf));

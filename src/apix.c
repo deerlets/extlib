@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include "stddefx.h"
 #include "apix.h"
-#include "apix-service.h"
+#include "apix-station.h"
 #include "crc16.h"
 #include "list.h"
 #include "atbuf.h"
@@ -70,11 +70,11 @@ static void parse_packet(struct apibus *bus, struct sinkfd *sinkfd)
     }
 }
 
-static struct api_service *
-find_service(struct list_head *services, const void *header, size_t len)
+static struct api_station *
+find_station(struct list_head *stations, const void *header, size_t len)
 {
-    struct api_service *pos;
-    list_for_each_entry(pos, services, node) {
+    struct api_station *pos;
+    list_for_each_entry(pos, stations, node) {
         if (memcmp(pos->header, header, len) == 0) {
             return pos;
         }
@@ -96,10 +96,10 @@ find_topic(struct list_head *topics, const void *header, size_t len)
 
 static void clear_unalive_serivce(struct apibus *bus)
 {
-    struct api_service *pos, *n;
-    list_for_each_entry_safe(pos, n, &bus->services, node) {
-        if (time(0) > pos->ts_alive + APIBUS_SERVICE_ALIVE_TIMEOUT) {
-            LOG_DEBUG("clear unalive service: %s", pos->header);
+    struct api_station *pos, *n;
+    list_for_each_entry_safe(pos, n, &bus->stations, node) {
+        if (time(0) > pos->ts_alive + APIBUS_STATION_ALIVE_TIMEOUT) {
+            LOG_DEBUG("clear unalive station: %s", pos->header);
             assert(pos->sinkfd->sink->ops.send);
             pos->sinkfd->sink->ops.send(
                 pos->sinkfd->sink, pos->sinkfd->fd,
@@ -110,7 +110,7 @@ static void clear_unalive_serivce(struct apibus *bus)
     }
 }
 
-static void service_add_handler(
+static void station_add_handler(
     struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
@@ -122,26 +122,26 @@ static void service_add_handler(
         return;
     }
 
-    struct api_service *serv = find_service(
-        &bus->services, header, strlen(header));
+    struct api_station *stt = find_station(
+        &bus->stations, header, strlen(header));
 
-    if (serv != NULL) {
-        apibus_send(bus, fd, "DUP SERVICE", 11);
+    if (stt != NULL) {
+        apibus_send(bus, fd, "DUP STATION", 11);
         return;
     }
 
-    serv = malloc(sizeof(*serv));
-    memset(serv, 0, sizeof(*serv));
-    snprintf(serv->header, sizeof(serv->header), "%s", header);
-    serv->ts_alive = time(0);
-    serv->sinkfd = find_sinkfd_in_apibus(bus, fd);
-    INIT_LIST_HEAD(&serv->node);
-    list_add(&serv->node, &bus->services);
+    stt = malloc(sizeof(*stt));
+    memset(stt, 0, sizeof(*stt));
+    snprintf(stt->header, sizeof(stt->header), "%s", header);
+    stt->ts_alive = time(0);
+    stt->sinkfd = find_sinkfd_in_apibus(bus, fd);
+    INIT_LIST_HEAD(&stt->node);
+    list_add(&stt->node, &bus->stations);
 
     apibus_send(bus, fd, "OK", 2);
 }
 
-static void service_del_handler(
+static void station_del_handler(
     struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
@@ -153,19 +153,19 @@ static void service_del_handler(
         return;
     }
 
-    struct api_service *serv = find_service(
-        &bus->services, header, strlen(header));
+    struct api_station *stt = find_station(
+        &bus->stations, header, strlen(header));
 
-    if (serv == NULL || serv->sinkfd->fd != fd) {
-        apibus_send(bus, fd, "SERVICE NOT FOUND", 17);
+    if (stt == NULL || stt->sinkfd->fd != fd) {
+        apibus_send(bus, fd, "STATION NOT FOUND", 17);
     } else {
-        list_del(&serv->node);
-        free(serv);
+        list_del(&stt->node);
+        free(stt);
         apibus_send(bus, fd, "OK", 2);
     }
 }
 
-static void service_alive_handler(
+static void station_alive_handler(
     struct apibus *bus, const char *content, int fd)
 {
     struct json_object *jo = json_object_new(content);
@@ -177,13 +177,13 @@ static void service_alive_handler(
         return;
     }
 
-    struct api_service *serv = find_service(
-        &bus->services, header, strlen(header));
+    struct api_station *stt = find_station(
+        &bus->stations, header, strlen(header));
 
-    if (serv == NULL || serv->sinkfd->fd != fd) {
-        apibus_send(bus, fd, "SERVICE NOT FOUND", 17);
+    if (stt == NULL || stt->sinkfd->fd != fd) {
+        apibus_send(bus, fd, "STATION NOT FOUND", 17);
     } else {
-        serv->ts_alive = time(0);
+        stt->ts_alive = time(0);
         apibus_send(bus, fd, "OK", 2);
     }
 }
@@ -251,7 +251,7 @@ struct apibus *apibus_new()
     bzero(bus, sizeof(*bus));
     INIT_LIST_HEAD(&bus->requests);
     INIT_LIST_HEAD(&bus->responses);
-    INIT_LIST_HEAD(&bus->services);
+    INIT_LIST_HEAD(&bus->stations);
     INIT_LIST_HEAD(&bus->topic_msgs);
     INIT_LIST_HEAD(&bus->topics);
     INIT_LIST_HEAD(&bus->sinkfds);
@@ -274,8 +274,8 @@ void apibus_destroy(struct apibus *bus)
     }
 
     {
-        struct api_service *pos, *n;
-        list_for_each_entry_safe(pos, n, &bus->services, node) {
+        struct api_station *pos, *n;
+        list_for_each_entry_safe(pos, n, &bus->stations, node) {
             list_del_init(&pos->node);
             free(pos);
         }
@@ -326,33 +326,33 @@ static void handle_request(struct apibus *bus)
         }
 
         LOG_INFO("poll >: %.4x:%s?%s", pos->pac->reqid, pos->pac->header, pos->pac->data);
-        if (strcmp(pos->pac->header, APIBUS_SERVICE_ADD) == 0) {
-            service_add_handler(bus, pos->pac->data, pos->fd);
+        if (strcmp(pos->pac->header, APIBUS_STATION_ADD) == 0) {
+            station_add_handler(bus, pos->pac->data, pos->fd);
             api_request_delete(pos);
-        } else if (strcmp(pos->pac->header, APIBUS_SERVICE_DEL) == 0) {
-            service_del_handler(bus, pos->pac->data, pos->fd);
+        } else if (strcmp(pos->pac->header, APIBUS_STATION_DEL) == 0) {
+            station_del_handler(bus, pos->pac->data, pos->fd);
             api_request_delete(pos);
-        } else if (strcmp(pos->pac->header, APIBUS_SERVICE_ALIVE) == 0) {
-            service_alive_handler(bus, pos->pac->data, pos->fd);
+        } else if (strcmp(pos->pac->header, APIBUS_STATION_ALIVE) == 0) {
+            station_alive_handler(bus, pos->pac->data, pos->fd);
             api_request_delete(pos);
         } else {
-            struct api_service *serv = find_service(
-                &bus->services, pos->pac->header, strlen(pos->pac->header));
-            if (serv) {
+            struct api_station *stt = find_station(
+                &bus->stations, pos->pac->header, strlen(pos->pac->header));
+            if (stt) {
                 // change reqid
                 struct srrp_packet *pac = srrp_write_request(
                     pos->fd, pos->pac->header, pos->pac->data);
 
-                assert(serv->sinkfd->sink->ops.send);
-                serv->sinkfd->sink->ops.send(
-                    serv->sinkfd->sink, serv->sinkfd->fd,
+                assert(stt->sinkfd->sink->ops.send);
+                stt->sinkfd->sink->ops.send(
+                    stt->sinkfd->sink, stt->sinkfd->fd,
                     pac->raw, pos->pac->len);
                 pos->state = API_REQUEST_ST_WAIT_RESPONSE;
                 pos->ts_send = time(0);
 
                 srrp_free(pac);
             } else {
-                apibus_send(bus, pos->fd, "SERVICE NOT FOUND", 17);
+                apibus_send(bus, pos->fd, "STATION NOT FOUND", 17);
                 api_request_delete(pos);
             }
         }
@@ -382,9 +382,9 @@ static void handle_response(struct apibus *bus)
             }
         }
 
-        struct api_service *serv = find_service(
-            &bus->services, pos->pac->header, strlen(pos->pac->header));
-        if (serv) serv->ts_alive = time(0);
+        struct api_station *stt = find_station(
+            &bus->stations, pos->pac->header, strlen(pos->pac->header));
+        if (stt) stt->ts_alive = time(0);
         api_response_delete(pos);
     }
 }
@@ -447,7 +447,7 @@ int apibus_poll(struct apibus *bus)
     handle_response(bus);
     handle_topic_msg(bus);
 
-    // clear service which is not alive
+    // clear station which is not alive
     clear_unalive_serivce(bus);
 
     return 0;
