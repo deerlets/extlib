@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -14,7 +15,14 @@
 
 #define SERIAL_ADDR "/dev/ttyUSB0"
 
-static void test_api_serial(void **status)
+static int exit_flag;
+
+static void signal_handler(int sig)
+{
+    exit_flag = 1;
+}
+
+static void demo()
 {
     struct apibus *bus = apibus_new();
     apibus_enable_posix(bus);
@@ -30,13 +38,16 @@ static void test_api_serial(void **status)
     int rc = apibus_ioctl(bus, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
-    for (int i = 0; i < 3; i++) {
+    while (exit_flag == 0) {
         int nr = 0;
         char buf[256];
+
         struct srrp_packet *pac = srrp_write_request(
             3333, "/8888/echo", "{msg:'hello'}");
         nr = apibus_send(bus, fd, pac->raw, pac->len);
         LOG_INFO("%d, %s", nr, pac->raw);
+        srrp_free(pac);
+
         bzero(buf, sizeof(buf));
         sleep(1);
         nr = apibus_recv(bus, fd, buf, sizeof(buf));
@@ -51,6 +62,8 @@ static void test_api_serial(void **status)
 int main(void)
 {
     log_set_level(LOG_LV_DEBUG);
-    test_api_serial(NULL);
+    signal(SIGINT, signal_handler);
+    signal(SIGQUIT, signal_handler);
+    demo();
     return 0;
 }

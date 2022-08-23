@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -15,6 +16,13 @@
 #include "log.h"
 
 #define SERIAL_ADDR "/dev/ttyUSB0"
+
+static int exit_flag;
+
+static void signal_handler(int sig)
+{
+    exit_flag = 1;
+}
 
 static struct opt opttab[] = {
     INIT_OPT_BOOL("-h", "help", false, "print this usage"),
@@ -53,19 +61,20 @@ static void run_apibus()
     rc = apibus_ioctl(bus, fd, 0, (unsigned long)&sp);
     assert(rc != -1);
 
-    while (1) {
+    while (exit_flag == 0) {
         apibus_poll(bus);
     }
 
-    apibus_close(bus, fd);
     apibus_disable_posix(bus);
-    apibus_destroy(bus);
+    apibus_destroy(bus); // auto close all fds
 }
 
 int main(int argc, char *argv[])
 {
     log_set_level(LOG_LV_DEBUG);
     opt_init_from_arg(opttab, argc, argv);
+    signal(SIGINT, signal_handler);
+    signal(SIGQUIT, signal_handler);
     run_apibus();
     return 0;
 }

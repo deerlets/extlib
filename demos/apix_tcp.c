@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -14,7 +15,14 @@
 
 #define TCP_ADDR "127.0.0.1:12248"
 
-static int test()
+static int exit_flag;
+
+static void signal_handler(int sig)
+{
+    exit_flag = 1;
+}
+
+static int demo()
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) return -1;
@@ -27,7 +35,7 @@ static int test()
         close(fd);
         return -1;
     }
-    LOG_DEBUG("Socket (C #%d) connected to %s:%d\n", fd,
+    LOG_DEBUG("Socket (C #%d) connected to %s:%d", fd,
               inet_ntoa(raddr.sin_addr), ntohs(raddr.sin_port));
 
     int opt = 1;
@@ -37,13 +45,16 @@ static int test()
     socklen_t lsocklen = sizeof(laddr);
     getsockname(fd, (struct sockaddr*)&laddr, &lsocklen);
 
-    while (1) {
+    while (exit_flag == 0) {
         int nr = 0;
         char buf[256];
+
         struct srrp_packet *pac = srrp_write_request(
             3333, "/8888/echo", "{msg:'hello'}");
         nr = send(fd, pac->raw, pac->len, 0);
         LOG_INFO("%d, %s", nr, pac->raw);
+        srrp_free(pac);
+
         bzero(buf, sizeof(buf));
         usleep(50 * 1000);
         nr = recv(fd, buf, sizeof(buf), 0);
@@ -56,6 +67,8 @@ static int test()
 int main(void)
 {
     log_set_level(LOG_LV_DEBUG);
-    test();
+    signal(SIGINT, signal_handler);
+    signal(SIGQUIT, signal_handler);
+    demo();
     return 0;
 }
