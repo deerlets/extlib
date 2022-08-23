@@ -13,7 +13,6 @@
 #include <arpa/inet.h>
 #include "apix.h"
 #include "apix-posix.h"
-#include "apix-station.h"
 #include "srrp.h"
 #include "crc16.h"
 #include "log.h"
@@ -76,16 +75,14 @@ static void *server_thread(void *args)
 
     char buf[256] = {0};
 
-    struct srrp_packet *pac_add = srrp_write_request(
-        8888, APIBUS_STATION_ADD, "{sttid:8888}");
-    struct srrp_packet *pac_del = srrp_write_request(
-        8888, APIBUS_STATION_DEL, "{sttid:8888}");
+    struct srrp_packet *pac_online = srrp_write_request(
+        8888, "/8888/online", "{}");
 
-    rc = send(fd, pac_add->raw, pac_add->len, 0);
+    rc = send(fd, pac_online->raw, pac_online->len, 0);
     memset(buf, 0, sizeof(buf));
     rc = recv(fd, buf, sizeof(buf), 0);
-    LOG_INFO("server recv response: %s", buf);
-    srrp_free(pac_add);
+    LOG_INFO("server recv online: %s", buf);
+    srrp_free(pac_online);
 
     rc = recv(fd, buf, sizeof(buf), 0);
     LOG_INFO("server recv request: %s", buf);
@@ -100,12 +97,6 @@ static void *server_thread(void *args)
     rc = send(fd, txpac->raw, txpac->len, 0);
     srrp_free(rxpac);
     srrp_free(txpac);
-
-    rc = send(fd, pac_del->raw, pac_del->len, 0);
-    memset(buf, 0, sizeof(buf));
-    rc = recv(fd, buf, sizeof(buf), 0);
-    LOG_INFO("server recv response: %s", buf);
-    srrp_free(pac_del);
 
     close(fd);
     server_finished = 1;

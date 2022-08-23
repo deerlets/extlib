@@ -19,6 +19,7 @@
 #define API_REQUEST_TIMEOUT 3000 /*ms*/
 #define PARSE_PACKET_TIMEOUT 1000 /*ms*/
 #define APIBUS_IDLE_MAX (1 * 1000 * 1000) /*us*/
+#define APIBUS_STATION_ALIVE_TIMEOUT (600 * 1000) /*ms*/
 
 #ifdef __cplusplus
 extern "C" {
