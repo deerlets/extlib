@@ -9,14 +9,14 @@ extern "C" {
 
 /*
  * Request: >[0xseqno],[^|0|$],[0xlenth],[0xsrcid]:[/dstid/header]?{data}\0<crc16>\0
- *   >0,$,0061,0001:/hello/x?{name:'yon',age:'18',equip:['hat','shoes']}\0<crc16>\0
- *   >1,^,0013,0001:/he\0<crc16>\0
- *   >2,0,0015,0001:llo/y\0<crc16>\0
- *   >3,$,0052,0001:?{name:'myu',age:'12',equip:['gun','bomb']}\0<crc16>\0
+ *   >0,$,<len>,0001:/8888/echo?{name:'yon',age:18,equip:['hat','shoes']}\0<crc16>\0
+ *   >1,^,<len>,0001:/8888/he\0<crc16>\0
+ *   >2,0,<len>,0001:llo/y\0<crc16>\0
+ *   >3,$,<len>,0001:?{name:'myu',age:12,equip:['gun','bomb']}\0<crc16>\0
  *
- * Response: <[seqno],[^|0|$],[0xlenth],[0xsrcid],[reqcrc16]:[/dstid/header]?{data}\0<crc16>\0
- *   <0,$,0062,0001,<crc16>:hello/x?{err:0,errmsg:'succ',data:{msg:'world'}}\0<crc16>\0
- *   <1,$,0061,0001,<crc16>:/hello/y?{err:1,errmsg:'fail',data:{msg:'hell'}}\0<crc16>\0
+ * Response: <[0xseqno],[^|0|$],[0xlenth],[0xsrcid],[reqcrc16]:[/dstid/header]?{data}\0<crc16>\0
+ *   <0,$,<len>,0001,<crc16>:/8888/echo?{err:0,errmsg:'succ',data:{msg:'world'}}\0<crc16>\0
+ *   <1,$,<len>,0001,<crc16>:/8888/hello/y?{err:1,errmsg:'fail',data:{msg:'hell'}}\0<crc16>\0
  *
  * Subscribe: #[0xseqno],[^|0|$],[0xlenth]:[topic]?{ctrl}\0<crc16>\0
  *   #0,$,0038:/motor/speed?{ack:0,cache:100}\0<crc16>\0
