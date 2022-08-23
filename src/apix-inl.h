@@ -102,13 +102,13 @@ struct api_response {
 struct api_station {
     uint16_t sttid;
     uint64_t ts_alive;
-    struct sinkfd *sinkfd;
+    int fd;
     struct list_head node;
 };
 
 struct api_topic_msg {
     struct srrp_packet *pac;
-    struct sinkfd *sinkfd;
+    int fd;
     struct list_head node;
 };
 

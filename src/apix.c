@@ -60,7 +60,7 @@ static void parse_packet(struct apibus *bus, struct sinkfd *sinkfd)
             struct api_topic_msg *tmsg = malloc(sizeof(*tmsg));
             memset(tmsg, 0, sizeof(*tmsg));
             tmsg->pac = pac;
-            tmsg->sinkfd = sinkfd;
+            tmsg->fd = sinkfd->fd;
             INIT_LIST_HEAD(&tmsg->node);
             list_add(&tmsg->node, &bus->topic_msgs);
         }
@@ -111,7 +111,7 @@ static void add_station(struct apibus *bus, struct api_request *req)
     memset(stt, 0, sizeof(*stt));
     stt->sttid = req->pac->srcid;
     stt->ts_alive = time(0);
-    stt->sinkfd = find_sinkfd_in_apibus(bus, req->fd);
+    stt->fd = req->fd;
     INIT_LIST_HEAD(&stt->node);
     list_add(&stt->node, &bus->stations);
 }
@@ -134,10 +134,10 @@ static void topic_sub_handler(struct apibus *bus, struct api_topic_msg *tmsg)
         list_add(&topic->node, &bus->topics);
     }
     assert(topic);
-    topic->fds[topic->nfds] = tmsg->sinkfd->fd;
+    topic->fds[topic->nfds] = tmsg->fd;
     topic->nfds++;
 
-    apibus_send(bus, tmsg->sinkfd->fd, "Sub OK", 6);
+    apibus_send(bus, tmsg->fd, "Sub OK", 6);
 }
 
 static void topic_unsub_handler(struct apibus *bus, struct api_topic_msg *tmsg)
@@ -150,14 +150,14 @@ static void topic_unsub_handler(struct apibus *bus, struct api_topic_msg *tmsg)
     }
     if (topic) {
         for (int i = 0; i < topic->nfds; i++) {
-            if (topic->fds[i] == tmsg->sinkfd->fd) {
+            if (topic->fds[i] == tmsg->fd) {
                 topic->fds[i] = topic->fds[topic->nfds-1];
                 topic->nfds--;
             }
         }
     }
 
-    apibus_send(bus, tmsg->sinkfd->fd, "Unsub OK", 8);
+    apibus_send(bus, tmsg->fd, "Unsub OK", 8);
 }
 
 static void topic_pub_handler(struct apibus *bus, struct api_topic_msg *tmsg)
@@ -273,10 +273,7 @@ static void handle_request(struct apibus *bus)
             continue;
         }
 
-        assert(dst->sinkfd->sink->ops.send);
-        dst->sinkfd->sink->ops.send(
-            dst->sinkfd->sink, dst->sinkfd->fd,
-            pos->pac->raw, pos->pac->len);
+        apibus_send(bus, dst->fd, pos->pac->raw, pos->pac->len);
         pos->state = API_REQUEST_ST_WAIT_RESPONSE;
         pos->ts_send = time(0);
     }
