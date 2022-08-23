@@ -8,13 +8,13 @@ extern "C" {
 #endif
 
 /*
- * Request: >[0xseqno],[^|0|$],[0xlenth],[0xsrcid]:[header]?{data}\0<crc16>\0
+ * Request: >[0xseqno],[^|0|$],[0xlenth],[0xsrcid]:[/dstid/header]?{data}\0<crc16>\0
  *   >0,$,0061,0001:/hello/x?{name:'yon',age:'18',equip:['hat','shoes']}\0<crc16>\0
  *   >1,^,0013,0001:/he\0<crc16>\0
  *   >2,0,0015,0001:llo/y\0<crc16>\0
  *   >3,$,0052,0001:?{name:'myu',age:'12',equip:['gun','bomb']}\0<crc16>\0
  *
- * Response: <[seqno],[^|0|$],[0xlenth],[0xdstid],[reqcrc16]:[header]?{data}\0<crc16>\0
+ * Response: <[seqno],[^|0|$],[0xlenth],[0xsrcid],[reqcrc16]:[/dstid/header]?{data}\0<crc16>\0
  *   <0,$,0062,0001,<crc16>:hello/x?{err:0,errmsg:'succ',data:{msg:'world'}}\0<crc16>\0
  *   <1,$,0061,0001,<crc16>:/hello/y?{err:1,errmsg:'fail',data:{msg:'hell'}}\0<crc16>\0
  *
@@ -53,9 +53,9 @@ struct srrp_packet {
     char seat;
     uint16_t seqno;
     uint16_t len;
-    uint16_t sttid;
+    uint16_t srcid; // request from srcid, response to srcid
     uint16_t reqcrc16; // reqcrc16 when leader is '<'
-    const char header[SRRP_HEADER_LEN];
+    const char header[SRRP_HEADER_LEN]; // include dstid
     uint32_t header_len;
     const char *data;
     uint32_t data_len;

@@ -41,7 +41,8 @@ static int test()
     while (1) {
         int nr = 0;
         char buf[256];
-        struct srrp_packet *pac = srrp_write_request(fd, "/0012/echo", "{msg:'hello'}");
+        struct srrp_packet *pac = srrp_write_request(
+            3333, "/8888/echo", "{msg:'hello'}");
         nr = send(fd, pac->raw, pac->len, 0);
         LOG_INFO("%d, %s", nr, pac->raw);
         bzero(buf, sizeof(buf));

@@ -34,7 +34,8 @@ static void test_api_serial(void **status)
     for (int i = 0; i < 3; i++) {
         int nr = 0;
         char buf[256];
-        struct srrp_packet *pac = srrp_write_request(fd, "/0012/echo", "{msg:'hello'}");
+        struct srrp_packet *pac = srrp_write_request(
+            3333, "/8888/echo", "{msg:'hello'}");
         nr = apibus_send(bus, fd, pac->raw, pac->len);
         LOG_INFO("%d, %s", nr, pac->raw);
         bzero(buf, sizeof(buf));

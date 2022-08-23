@@ -71,11 +71,11 @@ static void parse_packet(struct apibus *bus, struct sinkfd *sinkfd)
 }
 
 static struct api_station *
-find_station(struct list_head *stations, const char *stt_name)
+find_station(struct list_head *stations, uint16_t sttid)
 {
     struct api_station *pos;
     list_for_each_entry(pos, stations, node) {
-        if (memcmp(pos->name, stt_name, strlen(pos->name)) == 0) {
+        if (pos->sttid == sttid) {
             return pos;
         }
     }
@@ -99,86 +99,97 @@ static void clear_unalive_station(struct apibus *bus)
     struct api_station *pos, *n;
     list_for_each_entry_safe(pos, n, &bus->stations, node) {
         if (time(0) > pos->ts_alive + APIBUS_STATION_ALIVE_TIMEOUT) {
-            LOG_DEBUG("clear unalive station: %s", pos->name);
-            assert(pos->sinkfd->sink->ops.send);
-            pos->sinkfd->sink->ops.send(
-                pos->sinkfd->sink, pos->sinkfd->fd,
-                pos->name, strlen(pos->name));
+            LOG_DEBUG("clear unalive station: %x", pos->sttid);
             list_del(&pos->node);
             free(pos);
         }
     }
 }
 
-static void station_add_handler(struct apibus *bus, const char *content, int fd)
+static void station_add_handler(struct apibus *bus, struct api_request *req)
 {
-    struct json_object *jo = json_object_new(content);
-    char stt_name[API_HEADER_SIZE] = {0};
-    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
+    struct json_object *jo = json_object_new(req->pac->data);
+    int sttid = 0;
+    int rc = json_get_int(jo, "/sttid", &sttid);
     json_object_delete(jo);
     if (rc != 0) {
-        apibus_send(bus, fd, "FAILED", 6);
+        apibus_send(bus, req->fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(&bus->stations, stt_name);
+    // check if sttid of srrp is equal sttid in data of request
+    if (req->pac->srcid != sttid) {
+        apibus_send(bus, req->fd, "sttid is not correct", 20);
+        return;
+    }
 
+    struct api_station *stt = find_station(&bus->stations, sttid);
     if (stt != NULL) {
-        apibus_send(bus, fd, "DUP STATION", 11);
+        apibus_send(bus, req->fd, "DUP STATION", 11);
         return;
     }
 
     stt = malloc(sizeof(*stt));
     memset(stt, 0, sizeof(*stt));
-    snprintf(stt->name, sizeof(stt->name), "%s", stt_name);
+    stt->sttid = sttid;
     stt->ts_alive = time(0);
-    stt->sinkfd = find_sinkfd_in_apibus(bus, fd);
+    stt->sinkfd = find_sinkfd_in_apibus(bus, req->fd);
     INIT_LIST_HEAD(&stt->node);
     list_add(&stt->node, &bus->stations);
 
-    apibus_send(bus, fd, "OK", 2);
+    apibus_send(bus, req->fd, "OK", 2);
 }
 
-static void station_del_handler(struct apibus *bus, const char *content, int fd)
+static void station_del_handler(struct apibus *bus, struct api_request *req)
 {
-    struct json_object *jo = json_object_new(content);
-    char stt_name[API_HEADER_SIZE] = {0};
-    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
+    struct json_object *jo = json_object_new(req->pac->data);
+    int sttid = 0;
+    int rc = json_get_int(jo, "/sttid", &sttid);
     json_object_delete(jo);
     if (rc != 0) {
-        apibus_send(bus, fd, "FAILED", 6);
+        apibus_send(bus, req->fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(&bus->stations, stt_name);
+    // check if sttid of srrp is equal sttid in data of request
+    if (req->pac->srcid != sttid) {
+        apibus_send(bus, req->fd, "sttid is not correct", 20);
+        return;
+    }
 
-    if (stt == NULL || stt->sinkfd->fd != fd) {
-        apibus_send(bus, fd, "STATION NOT FOUND", 17);
+    struct api_station *stt = find_station(&bus->stations, sttid);
+    if (stt == NULL || stt->sinkfd->fd != req->fd) {
+        apibus_send(bus, req->fd, "STATION NOT FOUND", 17);
     } else {
         list_del(&stt->node);
         free(stt);
-        apibus_send(bus, fd, "OK", 2);
+        apibus_send(bus, req->fd, "OK", 2);
     }
 }
 
-static void station_alive_handler(struct apibus *bus, const char *content, int fd)
+static void station_alive_handler(struct apibus *bus, struct api_request *req)
 {
-    struct json_object *jo = json_object_new(content);
-    char stt_name[API_HEADER_SIZE] = {0};
-    int rc = json_get_string(jo, "/stt_name", stt_name, sizeof(stt_name));
+    struct json_object *jo = json_object_new(req->pac->data);
+    int sttid = 0;
+    int rc = json_get_int(jo, "/sttid", &sttid);
     json_object_delete(jo);
     if (rc != 0) {
-        apibus_send(bus, fd, "FAILED", 6);
+        apibus_send(bus, req->fd, "FAILED", 6);
         return;
     }
 
-    struct api_station *stt = find_station(&bus->stations, stt_name);
+    // check if sttid of srrp is equal sttid in data of request
+    if (req->pac->srcid != sttid) {
+        apibus_send(bus, req->fd, "sttid is not correct", 20);
+        return;
+    }
 
-    if (stt == NULL || stt->sinkfd->fd != fd) {
-        apibus_send(bus, fd, "STATION NOT FOUND", 17);
+    struct api_station *stt = find_station(&bus->stations, sttid);
+    if (stt == NULL || stt->sinkfd->fd != req->fd) {
+        apibus_send(bus, req->fd, "STATION NOT FOUND", 17);
     } else {
         stt->ts_alive = time(0);
-        apibus_send(bus, fd, "OK", 2);
+        apibus_send(bus, req->fd, "OK", 2);
     }
 }
 
@@ -319,35 +330,37 @@ static void handle_request(struct apibus *bus)
             continue;
         }
 
-        LOG_INFO("poll >: %.4x:%s?%s", pos->pac->sttid, pos->pac->header, pos->pac->data);
+        LOG_INFO("poll >: %.4x:%s?%s", pos->pac->srcid, pos->pac->header, pos->pac->data);
         if (strcmp(pos->pac->header, APIBUS_STATION_ADD) == 0) {
-            station_add_handler(bus, pos->pac->data, pos->fd);
+            station_add_handler(bus, pos);
             api_request_delete(pos);
         } else if (strcmp(pos->pac->header, APIBUS_STATION_DEL) == 0) {
-            station_del_handler(bus, pos->pac->data, pos->fd);
+            station_del_handler(bus, pos);
             api_request_delete(pos);
         } else if (strcmp(pos->pac->header, APIBUS_STATION_ALIVE) == 0) {
-            station_alive_handler(bus, pos->pac->data, pos->fd);
+            station_alive_handler(bus, pos);
             api_request_delete(pos);
         } else {
-            struct api_station *stt = find_station(&bus->stations, pos->pac->header);
-            if (stt) {
-                // change sttid
-                struct srrp_packet *pac = srrp_write_request(
-                    pos->fd, pos->pac->header, pos->pac->data);
-
-                assert(stt->sinkfd->sink->ops.send);
-                stt->sinkfd->sink->ops.send(
-                    stt->sinkfd->sink, stt->sinkfd->fd,
-                    pac->raw, pos->pac->len);
-                pos->state = API_REQUEST_ST_WAIT_RESPONSE;
-                pos->ts_send = time(0);
-
-                srrp_free(pac);
-            } else {
+            int sttid = 0;
+            int nr = sscanf(pos->pac->header, "/%d/", &sttid);
+            if (nr != 1) {
                 apibus_send(bus, pos->fd, "STATION NOT FOUND", 17);
                 api_request_delete(pos);
+                continue;
             }
+            struct api_station *stt = find_station(&bus->stations, sttid);
+            if (stt == NULL) {
+                apibus_send(bus, pos->fd, "STATION NOT FOUND", 17);
+                api_request_delete(pos);
+                continue;
+            }
+
+            assert(stt->sinkfd->sink->ops.send);
+            stt->sinkfd->sink->ops.send(
+                stt->sinkfd->sink, stt->sinkfd->fd,
+                pos->pac->raw, pos->pac->len);
+            pos->state = API_REQUEST_ST_WAIT_RESPONSE;
+            pos->ts_send = time(0);
         }
     }
 }
@@ -356,27 +369,25 @@ static void handle_response(struct apibus *bus)
 {
     struct api_response *pos, *n;
     list_for_each_entry_safe(pos, n, &bus->responses, node) {
-        LOG_INFO("poll <: %.4x:%s?%s", pos->pac->sttid, pos->pac->header, pos->pac->data);
+        LOG_INFO("poll <: %.4x:%s?%s", pos->pac->srcid, pos->pac->header, pos->pac->data);
         struct api_request *pos_req, *n_req;
         list_for_each_entry_safe(pos_req, n_req, &bus->requests, node) {
             if (pos_req->crc16 == pos->pac->reqcrc16 &&
                 strcmp(pos_req->pac->header, pos->pac->header) == 0 &&
-                pos_req->fd == pos->pac->sttid) {
-                // restore sttid
-                struct srrp_packet *pac = srrp_write_response(
-                    pos_req->pac->sttid, pos->pac->reqcrc16,
-                    pos->pac->header, pos->pac->data);
-
-                apibus_send(bus, pos_req->fd, pac->raw, pos->pac->len);
+                pos_req->pac->srcid == pos->pac->srcid) {
+                apibus_send(bus, pos_req->fd, pos->pac->raw, pos->pac->len);
                 api_request_delete(pos_req);
-
-                srrp_free(pac);
                 break;
             }
         }
 
-        struct api_station *stt = find_station(&bus->stations, pos->pac->header);
-        if (stt) stt->ts_alive = time(0);
+        int sttid = 0;
+        int nr = sscanf(pos->pac->header, "/%d/", &sttid);
+        if (nr != 1) {
+            struct api_station *stt = find_station(&bus->stations, sttid);
+            if (stt) stt->ts_alive = time(0);
+        }
+
         api_response_delete(pos);
     }
 }

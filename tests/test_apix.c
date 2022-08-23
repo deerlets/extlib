@@ -44,7 +44,7 @@ static void *client_thread(void *args)
     sleep(1);
 
     struct srrp_packet *pac = srrp_write_request(
-        fd, "/hello/x", "{name:'yon',age:'18',equip:['hat','shoes']}");
+        3333, "/8888/hello", "{name:'yon',age:'18',equip:['hat','shoes']}");
     rc = send(fd, pac->raw, pac->len, 0);
     srrp_free(pac);
 
@@ -77,9 +77,9 @@ static void *server_thread(void *args)
     char buf[256] = {0};
 
     struct srrp_packet *pac_add = srrp_write_request(
-        fd, APIBUS_STATION_ADD, "{stt_name:'/hello'}");
+        8888, APIBUS_STATION_ADD, "{sttid:8888}");
     struct srrp_packet *pac_del = srrp_write_request(
-        fd, APIBUS_STATION_DEL, "{stt_name:'/hello'}");
+        8888, APIBUS_STATION_DEL, "{sttid:8888}");
 
     rc = send(fd, pac_add->raw, pac_add->len, 0);
     memset(buf, 0, sizeof(buf));
@@ -95,7 +95,7 @@ static void *server_thread(void *args)
     crc = crc16_crc(crc, rxpac->data, rxpac->data_len);
     struct srrp_packet *txpac;
     txpac = srrp_write_response(
-        rxpac->sttid, crc, rxpac->header,
+        rxpac->srcid, crc, rxpac->header,
         "{err:0,errmsg:'succ',data:{msg:'world'}}");
     rc = send(fd, txpac->raw, txpac->len, 0);
     srrp_free(rxpac);
