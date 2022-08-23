@@ -12,7 +12,7 @@
 #include <sys/select.h>
 #include <fcntl.h>
 
-#include "apix-inl.h"
+#include "apix-private.h"
 #include "apix-stm32.h"
 #include "atbuf.h"
 #include "stddefx.h"

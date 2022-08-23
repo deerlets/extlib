@@ -5,10 +5,9 @@
 #include <cmocka.h>
 #include <string.h>
 #include <stdlib.h>
-#include "apix-inl.h"
+#include "svcx.h"
 #include "srrp.h"
 #include "crc16.h"
-#include "svcx.h"
 
 int on_echo(struct srrp_packet *req, struct srrp_packet **resp)
 {

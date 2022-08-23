@@ -3,8 +3,8 @@
 
 #if defined __unix__ || defined __linux__ || defined __APPLE__
 
-#include "apix.h"
 #include <stdint.h>
+#include "apix.h"
 
 #ifdef __cplusplus
 extern "C" {

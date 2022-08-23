@@ -1,4 +1,3 @@
-#include "apix-inl.h"
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -7,8 +6,9 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/time.h>
+
+#include "apix-private.h"
 #include "stddefx.h"
-#include "apix.h"
 #include "crc16.h"
 #include "list.h"
 #include "atbuf.h"

@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <termios.h>
 
-#include "apix-inl.h"
+#include "apix-private.h"
 #include "apix-posix.h"
 #include "atbuf.h"
 #include "stddefx.h"
