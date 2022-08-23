@@ -258,6 +258,8 @@ static void handle_request(struct apibus *bus)
         struct api_station *src = find_station(&bus->stations, pos->pac->srcid);
         if (src == NULL)
             add_station(bus, pos);
+        else
+            src->ts_alive = time(0);
 
         int dstid = 0;
         int nr = sscanf(pos->pac->header, "/%d/", &dstid);
@@ -298,7 +300,7 @@ static void handle_response(struct apibus *bus)
 
         int dstid = 0;
         int nr = sscanf(pos->pac->header, "/%d/", &dstid);
-        if (nr != 1) {
+        if (nr == 1) {
             struct api_station *dst = find_station(&bus->stations, dstid);
             if (!dst)
                 LOG_WARN("fake station: %d", dstid);
