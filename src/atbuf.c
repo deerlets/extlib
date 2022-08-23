@@ -63,8 +63,11 @@ char *atbuf_write_pos(atbuf_t *self)
 
 size_t atbuf_read_advance(atbuf_t *self, size_t len)
 {
-    assert(self->offset_out + len <= self->offset_in);
-    self->offset_out += len;
+    //assert(self->offset_out + len <= self->offset_in);
+    if (self->offset_out + len > self->offset_in)
+        self->offset_out = self->offset_in;
+    else
+        self->offset_out += len;
     atbuf_tidy(self);
     return atbuf_used(self);
 }
